@@ -8,7 +8,7 @@ import CustomerManagement from './components/CustomerManagement';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './context/AuthContext';
-import { usePermissions } from './hooks/usePermissions';
+import { usePermissions } from './context/PermissionsContext';
 import { PERMISSIONS } from './config/permissions';
 import api from './services/api';
 

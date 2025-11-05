@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './CustomerManagement.css';
 import CustomerForm from './CustomerForm';
-import { usePermissions } from '../hooks/usePermissions';
+import { usePermissions } from '../context/PermissionsContext';
 import { PERMISSIONS } from '../config/permissions';
 import api from '../services/api';
 

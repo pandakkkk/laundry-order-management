@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import './OrderDetails.css';
 import { format } from 'date-fns';
-import { usePermissions } from '../hooks/usePermissions';
+import { usePermissions } from '../context/PermissionsContext';
 import { PERMISSIONS } from '../config/permissions';
 
 const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
