@@ -58,8 +58,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server (only in non-serverless environment)
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+// Start server only when run directly (not when imported)
+if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
     console.log(`📊 Dashboard: http://localhost:${PORT}`);
