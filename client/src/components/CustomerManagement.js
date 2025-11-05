@@ -4,6 +4,7 @@ import CustomerForm from './CustomerForm';
 import { usePermissions } from '../context/PermissionsContext';
 import { PERMISSIONS } from '../config/permissions';
 import api from '../services/api';
+import Pagination from './Pagination';
 
 const CustomerManagement = () => {
   const { can, loading: permissionsLoading } = usePermissions();
@@ -14,18 +15,23 @@ const CustomerManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [stats, setStats] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
   const isInitialMount = useRef(true);
 
-  const fetchCustomers = useCallback(async () => {
+  const fetchCustomers = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       const params = {
+        page,
+        limit: 20,
         search: searchQuery,
-        status: statusFilter,
-        limit: 100
+        status: statusFilter
       };
       const response = await api.getCustomers(params);
       setCustomers(response.data);
+      setPagination(response.pagination);
+      setCurrentPage(page);
     } catch (error) {
       console.error('Error fetching customers:', error);
       alert('Failed to load customers');
@@ -46,7 +52,7 @@ const CustomerManagement = () => {
   // Initial load - wait for permissions to load, then fetch customers and stats
   useEffect(() => {
     if (!permissionsLoading && can(PERMISSIONS.CUSTOMER_VIEW)) {
-      fetchCustomers();
+      fetchCustomers(1);
       fetchStats();
     } else if (!permissionsLoading && !can(PERMISSIONS.CUSTOMER_VIEW)) {
       // Permissions loaded but user doesn't have access
@@ -65,7 +71,7 @@ const CustomerManagement = () => {
 
     const timeoutId = setTimeout(() => {
       if (can(PERMISSIONS.CUSTOMER_VIEW)) {
-        fetchCustomers();
+        fetchCustomers(1); // Reset to page 1 when searching/filtering
       }
     }, 500);
 
@@ -96,7 +102,7 @@ const CustomerManagement = () => {
     try {
       await api.deleteCustomer(customer._id);
       alert('Customer deleted successfully');
-      fetchCustomers();
+      fetchCustomers(currentPage);
       fetchStats();
     } catch (error) {
       console.error('Error deleting customer:', error);
@@ -115,7 +121,7 @@ const CustomerManagement = () => {
       }
       setShowForm(false);
       setSelectedCustomer(null);
-      fetchCustomers();
+      fetchCustomers(1); // Go to first page after adding/updating
       fetchStats();
     } catch (error) {
       console.error('Error saving customer:', error);
@@ -215,7 +221,7 @@ const CustomerManagement = () => {
             <option value="Blocked">Blocked</option>
           </select>
         </div>
-        <button className="btn btn-secondary" onClick={fetchCustomers}>
+        <button className="btn btn-secondary" onClick={() => fetchCustomers(currentPage)}>
           🔄 Refresh
         </button>
       </div>
@@ -341,6 +347,15 @@ const CustomerManagement = () => {
               ))}
             </tbody>
           </table>
+        )}
+        
+        {pagination && !loading && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={pagination.pages}
+            totalRecords={pagination.total}
+            onPageChange={fetchCustomers}
+          />
         )}
       </div>
 

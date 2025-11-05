@@ -1,11 +1,12 @@
 import React, { memo, useCallback, useMemo } from 'react';
 import './OrderTable.css';
 import { format } from 'date-fns';
-import { usePermissions } from '../hooks/usePermissions';
+import { usePermissions } from '../context/PermissionsContext';
 import { PERMISSIONS } from '../config/permissions';
 import SearchBar from './SearchBar';
+import Pagination from './Pagination';
 
-const OrderTable = memo(({ orders, loading, searchQuery, isSearching, searchField, onSearchInputChange, onSearchClick, onFieldChange, onOrderSelect, onStatusUpdate }) => {
+const OrderTable = memo(({ orders, loading, searchQuery, isSearching, searchField, pagination, currentPage, onSearchInputChange, onSearchClick, onFieldChange, onOrderSelect, onStatusUpdate, onPageChange }) => {
   const { can } = usePermissions();
   
   const getStatusClass = useCallback((status) => {
@@ -191,9 +192,21 @@ const OrderTable = memo(({ orders, loading, searchQuery, isSearching, searchFiel
           </tbody>
         </table>
       </div>
-      <div className="table-footer">
-        <p>Total: {orders.length} order(s)</p>
-      </div>
+      
+      {pagination && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={pagination.pages}
+          totalRecords={pagination.total}
+          onPageChange={onPageChange}
+        />
+      )}
+      
+      {!pagination && (
+        <div className="table-footer">
+          <p>Showing all {orders.length} result(s)</p>
+        </div>
+      )}
     </div>
   );
 });
