@@ -87,7 +87,11 @@ function App() {
       fetchStats();
       
       // Auto-refresh every 30 seconds
+      // BUT: Don't refresh if form is open or user is searching
       const interval = setInterval(() => {
+        // Skip refresh if form is open (user is adding/editing order)
+        if (showForm) return;
+        
         fetchStats();
         // Only refresh orders if not in search mode
         if (!searchQuery.trim()) {
@@ -97,7 +101,7 @@ function App() {
       
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, filterStatus, searchQuery, currentPage, fetchOrders, fetchStats]);
+  }, [isAuthenticated, filterStatus, searchQuery, currentPage, showForm, fetchOrders, fetchStats]);
 
   const handleSearchInputChange = useCallback((query) => {
     setSearchQuery(query);
