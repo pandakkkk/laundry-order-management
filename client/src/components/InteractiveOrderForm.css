@@ -445,34 +445,114 @@
   margin-bottom: 0.75rem;
 }
 
-.customer-select-dropdown {
+.customer-search-wrapper {
+  position: relative;
+}
+
+.customer-search-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.customer-search-input {
   width: 100%;
-  padding: 0.875rem 1rem;
+  padding: 0.875rem 3rem 0.875rem 1rem;
   font-size: 1rem;
   font-weight: 500;
   border: 2px solid #38bdf8;
   border-radius: 0.5rem;
   background: white;
   color: #1e293b;
-  cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.customer-select-dropdown:hover {
+.customer-search-input:hover {
   border-color: #0284c7;
   box-shadow: 0 2px 6px rgba(2, 132, 199, 0.2);
 }
 
-.customer-select-dropdown:focus {
+.customer-search-input:focus {
   outline: none;
   border-color: #0369a1;
   box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.1);
 }
 
-.customer-select-dropdown option {
-  padding: 0.75rem;
+.customer-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.clear-customer-btn {
+  position: absolute;
+  right: 0.75rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 1.75rem;
+  height: 1.75rem;
   font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-weight: bold;
+}
+
+.clear-customer-btn:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+
+.customer-dropdown-results {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid #38bdf8;
+  border-radius: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+.customer-dropdown-item {
+  padding: 0.875rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 1px solid #e0f2fe;
+}
+
+.customer-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.customer-dropdown-item:hover {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.customer-dropdown-name {
+  font-weight: 600;
+  color: #0369a1;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.customer-dropdown-phone {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-family: 'Courier New', monospace;
+}
+
+.customer-dropdown-empty {
+  padding: 1rem;
+  text-align: center;
+  color: #64748b;
+  font-style: italic;
 }
 
 .loading-customers {

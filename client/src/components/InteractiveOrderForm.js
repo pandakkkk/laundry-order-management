@@ -1,4 +1,4 @@
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useRef, useEffect } from 'react';
 import './InteractiveOrderForm.css';
 import { PRODUCT_CATEGORIES, getProductsByCategory, calculateItemPrice } from '../data/productCatalog';
 import ProductOptionsModal from './ProductOptionsModal';
@@ -28,6 +28,10 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   const [allCustomers, setAllCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [selectedCustomerFromList, setSelectedCustomerFromList] = useState('');
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [filteredCustomers, setFilteredCustomers] = useState([]);
+  const customerSearchRef = useRef(null);
 
   // Handle product click
   const handleProductClick = (product) => {
@@ -136,11 +140,32 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
       setLoadingCustomers(true);
       const response = await api.getCustomers({ limit: 1000 }); // Get all customers
       setAllCustomers(response.data);
+      setFilteredCustomers(response.data);
     } catch (error) {
       console.error('Error loading customers:', error);
     } finally {
       setLoadingCustomers(false);
     }
+  };
+
+  // Filter customers based on search query
+  const handleCustomerSearch = (e) => {
+    const query = e.target.value;
+    setCustomerSearchQuery(query);
+    setShowCustomerDropdown(true);
+
+    if (!query.trim()) {
+      setFilteredCustomers(allCustomers);
+      return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+    const filtered = allCustomers.filter(customer => {
+      const nameMatch = customer.name.toLowerCase().includes(lowerQuery);
+      const phoneMatch = customer.phoneNumber.includes(query);
+      return nameMatch || phoneMatch;
+    });
+    setFilteredCustomers(filtered);
   };
 
   // Proceed to booking
@@ -154,32 +179,47 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   };
 
   // Handle customer selection from dropdown
-  const handleCustomerSelect = (e) => {
-    const customerId = e.target.value;
-    setSelectedCustomerFromList(customerId);
+  const handleCustomerSelect = (customer) => {
+    setSelectedCustomerFromList(customer._id);
+    setCustomerSearchQuery(`${customer.name} - ${customer.phoneNumber}`);
+    setShowCustomerDropdown(false);
     
-    if (customerId) {
-      const customer = allCustomers.find(c => c._id === customerId);
-      if (customer) {
-        setCustomerInfo(prev => ({
-          ...prev,
-          phoneNumber: customer.phoneNumber,
-          customerName: customer.name,
-          customerId: customer.customerId || '',
-          location: customer.address ? `${customer.address}${customer.city ? ', ' + customer.city : ''}` : ''
-        }));
-      }
-    } else {
-      // Clear if "New Customer" is selected
-      setCustomerInfo(prev => ({
-        ...prev,
-        phoneNumber: '',
-        customerName: '',
-        customerId: '',
-        location: ''
-      }));
-    }
+    setCustomerInfo(prev => ({
+      ...prev,
+      phoneNumber: customer.phoneNumber,
+      customerName: customer.name,
+      customerId: customer.customerId || '',
+      location: customer.address ? `${customer.address}${customer.city ? ', ' + customer.city : ''}` : ''
+    }));
   };
+
+  // Clear customer selection
+  const handleClearCustomerSelection = () => {
+    setSelectedCustomerFromList('');
+    setCustomerSearchQuery('');
+    setFilteredCustomers(allCustomers);
+    setCustomerInfo(prev => ({
+      ...prev,
+      phoneNumber: '',
+      customerName: '',
+      customerId: '',
+      location: ''
+    }));
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (customerSearchRef.current && !customerSearchRef.current.contains(event.target)) {
+        setShowCustomerDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Submit order
   const handleSubmit = (e) => {
@@ -365,24 +405,56 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
               {/* Customer Selection Dropdown */}
               <div className="customer-selection-section">
                 <label htmlFor="customerSelect" className="customer-select-label">
-                  👥 Select Existing Customer or Add New
+                  👥 Search Customer by Name or Phone Number
                 </label>
                 {loadingCustomers ? (
                   <div className="loading-customers">Loading customers...</div>
                 ) : (
-                  <select
-                    id="customerSelect"
-                    className="customer-select-dropdown"
-                    value={selectedCustomerFromList}
-                    onChange={handleCustomerSelect}
-                  >
-                    <option value="">➕ New Customer</option>
-                    {allCustomers.map((customer) => (
-                      <option key={customer._id} value={customer._id}>
-                        {customer.name} - {customer.phoneNumber}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="customer-search-wrapper" ref={customerSearchRef}>
+                    <div className="customer-search-input-container">
+                      <input
+                        type="text"
+                        className="customer-search-input"
+                        placeholder="🔍 Type customer name or phone number..."
+                        value={customerSearchQuery}
+                        onChange={handleCustomerSearch}
+                        onFocus={() => setShowCustomerDropdown(true)}
+                      />
+                      {selectedCustomerFromList && (
+                        <button
+                          type="button"
+                          className="clear-customer-btn"
+                          onClick={handleClearCustomerSelection}
+                          title="Clear selection"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    
+                    {showCustomerDropdown && filteredCustomers.length > 0 && (
+                      <div className="customer-dropdown-results">
+                        {filteredCustomers.map((customer) => (
+                          <div
+                            key={customer._id}
+                            className="customer-dropdown-item"
+                            onClick={() => handleCustomerSelect(customer)}
+                          >
+                            <div className="customer-dropdown-name">{customer.name}</div>
+                            <div className="customer-dropdown-phone">{customer.phoneNumber}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {showCustomerDropdown && customerSearchQuery && filteredCustomers.length === 0 && (
+                      <div className="customer-dropdown-results">
+                        <div className="customer-dropdown-empty">
+                          No customers found. Add as new customer below.
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
