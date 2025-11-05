@@ -16,7 +16,9 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  // Use relative path in production (Vercel), localhost in development
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 
+    (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api');
 
   const loadUser = useCallback(async () => {
     try {
