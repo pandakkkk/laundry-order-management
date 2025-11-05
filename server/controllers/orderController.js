@@ -1,9 +1,16 @@
 const Order = require('../models/Order');
 
-// Get all orders
+// Get all orders with pagination
 exports.getAllOrders = async (req, res) => {
   try {
-    const { status, startDate, endDate, sortBy = '-orderDate' } = req.query;
+    const { 
+      status, 
+      startDate, 
+      endDate, 
+      sortBy = '-orderDate',
+      page = 1,
+      limit = 20
+    } = req.query;
     
     let query = {};
     
@@ -17,12 +24,24 @@ exports.getAllOrders = async (req, res) => {
       if (endDate) query.orderDate.$lte = new Date(endDate);
     }
     
-    const orders = await Order.find(query).sort(sortBy);
+    const skip = (page - 1) * limit;
+    const orders = await Order.find(query)
+      .sort(sortBy)
+      .limit(parseInt(limit))
+      .skip(skip);
+    
+    const total = await Order.countDocuments(query);
     
     res.json({
       success: true,
       count: orders.length,
-      data: orders
+      data: orders,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
     });
   } catch (error) {
     res.status(500).json({

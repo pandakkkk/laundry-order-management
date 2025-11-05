@@ -5,7 +5,7 @@ exports.getCustomers = async (req, res) => {
   try {
     const { 
       page = 1, 
-      limit = 50, 
+      limit = 20, 
       search = '', 
       status = '',
       sortBy = 'createdAt',

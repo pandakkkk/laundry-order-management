@@ -24,13 +24,21 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchField, setSearchField] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
 
   // Stable functions using useCallback
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (page = 1) => {
     try {
-      const params = filterStatus ? { status: filterStatus } : {};
+      const params = { 
+        page,
+        limit: 20,
+        ...(filterStatus && { status: filterStatus })
+      };
       const data = await api.getOrders(params);
       setOrders(data.data);
+      setPagination(data.pagination);
+      setCurrentPage(page);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
@@ -49,32 +57,32 @@ function App() {
 
   const performSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
-      fetchOrders();
+      fetchOrders(1); // Reset to page 1 when clearing search
       return;
     }
 
     try {
       setIsSearching(true);
+      // Search ALL records (no pagination on search)
       const data = await api.searchOrders(searchQuery, searchField);
       setOrders(data.data);
+      setPagination(null); // Clear pagination when searching
     } catch (error) {
       console.error('Error searching orders:', error);
       alert('Search failed. Please try again.');
       // If search fails, fall back to all orders
-      const params = filterStatus ? { status: filterStatus } : {};
-      const fallbackData = await api.getOrders(params);
-      setOrders(fallbackData.data);
+      fetchOrders(1);
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery, searchField, filterStatus, fetchOrders]);
+  }, [searchQuery, searchField, fetchOrders]);
 
   // Initial load and auto-refresh
   useEffect(() => {
     if (isAuthenticated) {
       // Only fetch if not in search mode
       if (!searchQuery.trim()) {
-        fetchOrders();
+        fetchOrders(currentPage);
       }
       fetchStats();
       
@@ -83,13 +91,13 @@ function App() {
         fetchStats();
         // Only refresh orders if not in search mode
         if (!searchQuery.trim()) {
-          fetchOrders();
+          fetchOrders(currentPage);
         }
       }, 30000);
       
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, filterStatus, searchQuery, fetchOrders, fetchStats]);
+  }, [isAuthenticated, filterStatus, searchQuery, currentPage, fetchOrders, fetchStats]);
 
   const handleSearchInputChange = useCallback((query) => {
     setSearchQuery(query);
@@ -106,7 +114,7 @@ function App() {
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
       await api.updateOrderStatus(orderId, newStatus);
-      fetchOrders();
+      fetchOrders(currentPage); // Stay on current page
       fetchStats();
       if (selectedOrder && selectedOrder._id === orderId) {
         const updatedOrder = await api.getOrderById(orderId);
@@ -122,7 +130,7 @@ function App() {
     try {
       await api.createOrder(orderData);
       setShowForm(false);
-      fetchOrders();
+      fetchOrders(1); // Go to first page after creating
       fetchStats();
       alert('Order created successfully!');
     } catch (error) {
@@ -139,7 +147,7 @@ function App() {
     try {
       await api.deleteOrder(orderId);
       setSelectedOrder(null);
-      fetchOrders();
+      fetchOrders(currentPage); // Stay on current page
       fetchStats();
     } catch (error) {
       console.error('Error deleting order:', error);
@@ -212,13 +220,16 @@ function App() {
           searchQuery={searchQuery}
           isSearching={isSearching}
           searchField={searchField}
+          pagination={pagination}
+          currentPage={currentPage}
           onFilterChange={setFilterStatus}
           onSearchInputChange={handleSearchInputChange}
           onSearchClick={handleSearchClick}
           onFieldChange={handleFieldChange}
           onOrderSelect={setSelectedOrder}
           onStatusUpdate={handleStatusUpdate}
-          onRefresh={fetchOrders}
+          onRefresh={() => fetchOrders(currentPage)}
+          onPageChange={fetchOrders}
         />
 
         {selectedOrder && (

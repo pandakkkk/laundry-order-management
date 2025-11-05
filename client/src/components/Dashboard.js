@@ -11,13 +11,16 @@ const Dashboard = memo(({
   searchQuery,
   isSearching,
   searchField,
+  pagination,
+  currentPage,
   onFilterChange, 
   onSearchInputChange,
   onSearchClick,
   onFieldChange, 
   onOrderSelect,
   onStatusUpdate,
-  onRefresh 
+  onRefresh,
+  onPageChange 
 }) => {
   return (
     <div className="dashboard">
@@ -60,11 +63,14 @@ const Dashboard = memo(({
         searchQuery={searchQuery}
         isSearching={isSearching}
         searchField={searchField}
+        pagination={pagination}
+        currentPage={currentPage}
         onSearchInputChange={onSearchInputChange}
         onSearchClick={onSearchClick}
         onFieldChange={onFieldChange}
         onOrderSelect={onOrderSelect}
         onStatusUpdate={onStatusUpdate}
+        onPageChange={onPageChange}
       />
     </div>
   );
