@@ -25,6 +25,9 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   const [customerSearchResults, setCustomerSearchResults] = useState([]);
   const [searchingCustomer, setSearchingCustomer] = useState(false);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [allCustomers, setAllCustomers] = useState([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [selectedCustomerFromList, setSelectedCustomerFromList] = useState('');
 
   // Handle product click
   const handleProductClick = (product) => {
@@ -127,6 +130,19 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     setCustomerSearchResults([]);
   };
 
+  // Load all customers when form opens
+  const loadAllCustomers = async () => {
+    try {
+      setLoadingCustomers(true);
+      const response = await api.getCustomers({ limit: 1000 }); // Get all customers
+      setAllCustomers(response.data);
+    } catch (error) {
+      console.error('Error loading customers:', error);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
+
   // Proceed to booking
   const handleProceedToBooking = () => {
     if (cart.length === 0) {
@@ -134,6 +150,35 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
       return;
     }
     setShowCustomerForm(true);
+    loadAllCustomers(); // Load customers when opening form
+  };
+
+  // Handle customer selection from dropdown
+  const handleCustomerSelect = (e) => {
+    const customerId = e.target.value;
+    setSelectedCustomerFromList(customerId);
+    
+    if (customerId) {
+      const customer = allCustomers.find(c => c._id === customerId);
+      if (customer) {
+        setCustomerInfo(prev => ({
+          ...prev,
+          phoneNumber: customer.phoneNumber,
+          customerName: customer.name,
+          customerId: customer.customerId || '',
+          location: customer.address ? `${customer.address}${customer.city ? ', ' + customer.city : ''}` : ''
+        }));
+      }
+    } else {
+      // Clear if "New Customer" is selected
+      setCustomerInfo(prev => ({
+        ...prev,
+        phoneNumber: '',
+        customerName: '',
+        customerId: '',
+        location: ''
+      }));
+    }
   };
 
   // Submit order
@@ -317,6 +362,32 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
             </div>
 
             <form onSubmit={handleSubmit} className="customer-form">
+              {/* Customer Selection Dropdown */}
+              <div className="customer-selection-section">
+                <label htmlFor="customerSelect" className="customer-select-label">
+                  👥 Select Existing Customer or Add New
+                </label>
+                {loadingCustomers ? (
+                  <div className="loading-customers">Loading customers...</div>
+                ) : (
+                  <select
+                    id="customerSelect"
+                    className="customer-select-dropdown"
+                    value={selectedCustomerFromList}
+                    onChange={handleCustomerSelect}
+                  >
+                    <option value="">➕ New Customer</option>
+                    {allCustomers.map((customer) => (
+                      <option key={customer._id} value={customer._id}>
+                        {customer.name} - {customer.phoneNumber}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="form-divider"></div>
+
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="ticketNumber">Ticket Number *</label>
