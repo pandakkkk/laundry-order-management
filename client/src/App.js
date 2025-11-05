@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import './App.css';
 import Dashboard from './components/Dashboard';
-import OrderForm from './components/OrderForm';
 import InteractiveOrderForm from './components/InteractiveOrderForm';
 import OrderDetails from './components/OrderDetails';
 import CustomerManagement from './components/CustomerManagement';
@@ -90,7 +89,7 @@ function App() {
       
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, filterStatus, fetchOrders, fetchStats]);
+  }, [isAuthenticated, filterStatus, searchQuery, fetchOrders, fetchStats]);
 
   const handleSearchInputChange = useCallback((query) => {
     setSearchQuery(query);

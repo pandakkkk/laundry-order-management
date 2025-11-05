@@ -1,6 +1,6 @@
 import React, { useState, memo } from 'react';
 import './InteractiveOrderForm.css';
-import { PRODUCT_CATEGORIES, PRODUCTS, getProductsByCategory, calculateItemPrice } from '../data/productCatalog';
+import { PRODUCT_CATEGORIES, getProductsByCategory, calculateItemPrice } from '../data/productCatalog';
 import ProductOptionsModal from './ProductOptionsModal';
 import api from '../services/api';
 

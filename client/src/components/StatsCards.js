@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo } from 'react';
 import './StatsCards.css';
 
 const StatsCards = memo(({ stats, onFilterChange }) => {

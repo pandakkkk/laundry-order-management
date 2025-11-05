@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext();
@@ -18,6 +18,20 @@ export const AuthProvider = ({ children }) => {
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
+  const loadUser = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/auth/me`);
+      setUser(response.data.user);
+    } catch (error) {
+      console.error('Error loading user:', error);
+      // Don't call logout here to avoid circular dependency
+      localStorage.removeItem('token');
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [API_BASE_URL]);
+
   // Set up axios defaults
   useEffect(() => {
     if (token) {
@@ -27,19 +41,7 @@ export const AuthProvider = ({ children }) => {
       delete axios.defaults.headers.common['Authorization'];
       setLoading(false);
     }
-  }, [token]);
-
-  const loadUser = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/auth/me`);
-      setUser(response.data.user);
-    } catch (error) {
-      console.error('Error loading user:', error);
-      logout();
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [token, loadUser]);
 
   const login = async (email, password) => {
     try {
