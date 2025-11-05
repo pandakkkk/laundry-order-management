@@ -1,0 +1,46 @@
+{
+  "name": "laundry-order-monitoring",
+  "version": "1.0.0",
+  "description": "Central dashboard for monitoring laundry order tickets",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "concurrently \"nodemon server/index.js\" \"cd client && npm start\"",
+    "server": "nodemon server/index.js",
+    "client": "cd client && npm start",
+    "install-all": "npm install && cd client && npm install",
+    "build": "cd client && npm run build",
+    "seed": "node scripts/seed-data.js",
+    "seed-100": "node scripts/generate-100-orders.js",
+    "seed-150": "node scripts/generate-100-orders.js",
+    "seed-customers": "node scripts/seed-customers.js",
+    "create-admin": "node scripts/create-admin.js",
+    "create-test-users": "node scripts/create-test-users.js",
+    "test-cloud": "node scripts/test-cloud-connection.js",
+    "migrate-to-cloud": "node scripts/migrate-to-cloud.js",
+    "verify-cloud": "node scripts/verify-cloud-data.js",
+    "list-users": "node scripts/list-cloud-users.js",
+    "reset-password": "node scripts/reset-password.js",
+    "seed-cloud": "node scripts/seed-cloud-fresh.js"
+  },
+  "keywords": ["laundry", "order-monitoring", "dashboard"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "mongoose": "^8.0.0",
+    "body-parser": "^1.20.2",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "express-validator": "^7.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "concurrently": "^8.2.2"
+  }
+}
+

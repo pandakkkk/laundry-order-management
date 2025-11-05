@@ -1,0 +1,115 @@
+[
+  {
+    "ticketNumber": "2504-143-00002",
+    "orderNumber": "002",
+    "customerId": "CUST001",
+    "customerName": "chotu kachhap",
+    "phoneNumber": "+91 79036 75932",
+    "orderDate": "2025-10-22T10:54:00.000Z",
+    "expectedDelivery": "2025-10-24T00:00:00.000Z",
+    "servedBy": "Neha Kr",
+    "items": [
+      {
+        "description": "Shirt (male, white, fullsleeves)",
+        "quantity": 1,
+        "price": 49.00
+      },
+      {
+        "description": "Shoes (Casual, white)",
+        "quantity": 1,
+        "price": 159.00
+      }
+    ],
+    "totalAmount": 208.00,
+    "paymentMethod": "Cash",
+    "paymentStatus": "Pending",
+    "status": "Received",
+    "location": "Near Kanchan Petrolium, Ranchi, JH",
+    "notes": "payment will be valid only after stamp"
+  },
+  {
+    "ticketNumber": "2504-143-00003",
+    "orderNumber": "003",
+    "customerId": "CUST002",
+    "customerName": "Rajesh Kumar",
+    "phoneNumber": "+91 98765 43210",
+    "orderDate": "2025-10-23T09:30:00.000Z",
+    "expectedDelivery": "2025-10-25T18:00:00.000Z",
+    "servedBy": "Priya Singh",
+    "items": [
+      {
+        "description": "Jeans (blue, size 32)",
+        "quantity": 2,
+        "price": 80.00
+      },
+      {
+        "description": "T-shirt (cotton, medium)",
+        "quantity": 3,
+        "price": 35.00
+      }
+    ],
+    "totalAmount": 265.00,
+    "paymentMethod": "UPI",
+    "paymentStatus": "Paid",
+    "status": "In Progress",
+    "location": "Main Street, Block A, Ranchi",
+    "notes": "Handle with care - expensive items"
+  },
+  {
+    "ticketNumber": "2504-143-00004",
+    "orderNumber": "004",
+    "customerId": "CUST003",
+    "customerName": "Sunita Devi",
+    "phoneNumber": "+91 87654 32109",
+    "orderDate": "2025-10-23T14:15:00.000Z",
+    "expectedDelivery": "2025-10-26T12:00:00.000Z",
+    "servedBy": "Neha Kr",
+    "items": [
+      {
+        "description": "Saree (silk, red)",
+        "quantity": 1,
+        "price": 150.00
+      },
+      {
+        "description": "Blouse (silk)",
+        "quantity": 1,
+        "price": 50.00
+      }
+    ],
+    "totalAmount": 200.00,
+    "paymentMethod": "Cash",
+    "paymentStatus": "Partial",
+    "status": "Ready",
+    "location": "Doranda, Near Post Office",
+    "notes": "Urgent - Wedding on 27th"
+  },
+  {
+    "ticketNumber": "2504-143-00005",
+    "orderNumber": "005",
+    "customerId": "CUST004",
+    "customerName": "Amit Sharma",
+    "phoneNumber": "+91 91234 56789",
+    "orderDate": "2025-10-21T16:20:00.000Z",
+    "expectedDelivery": "2025-10-23T10:00:00.000Z",
+    "servedBy": "Priya Singh",
+    "items": [
+      {
+        "description": "Blazer (formal, black)",
+        "quantity": 1,
+        "price": 200.00
+      },
+      {
+        "description": "Trouser (formal, black)",
+        "quantity": 2,
+        "price": 100.00
+      }
+    ],
+    "totalAmount": 400.00,
+    "paymentMethod": "Card",
+    "paymentStatus": "Paid",
+    "status": "Delivered",
+    "location": "HEC Colony, Ranchi",
+    "notes": "Regular customer"
+  }
+]
+
