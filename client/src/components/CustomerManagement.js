@@ -26,7 +26,7 @@ const CustomerManagement = () => {
         page,
         limit: 20,
         search: searchQuery,
-        status: statusFilter
+        status: statusFilter // Already capitalized
       };
       const response = await api.getCustomers(params);
       setCustomers(response.data);
@@ -189,8 +189,8 @@ const CustomerManagement = () => {
             {statusFilter === '' && <div className="active-indicator">●</div>}
           </div>
           <div 
-            className={`stat-card stat-success clickable ${statusFilter === 'active' ? 'active' : ''}`}
-            onClick={() => handleStatCardClick('active')}
+            className={`stat-card stat-success clickable ${statusFilter === 'Active' ? 'active' : ''}`}
+            onClick={() => handleStatCardClick('Active')}
             title="Click to filter active customers"
           >
             <div className="stat-icon">✅</div>
@@ -198,11 +198,11 @@ const CustomerManagement = () => {
               <div className="stat-value">{stats.activeCustomers}</div>
               <div className="stat-label">Active</div>
             </div>
-            {statusFilter === 'active' && <div className="active-indicator">●</div>}
+            {statusFilter === 'Active' && <div className="active-indicator">●</div>}
           </div>
           <div 
-            className={`stat-card stat-warning clickable ${statusFilter === 'inactive' ? 'active' : ''}`}
-            onClick={() => handleStatCardClick('inactive')}
+            className={`stat-card stat-warning clickable ${statusFilter === 'Inactive' ? 'active' : ''}`}
+            onClick={() => handleStatCardClick('Inactive')}
             title="Click to filter inactive customers"
           >
             <div className="stat-icon">⏸️</div>
@@ -210,11 +210,11 @@ const CustomerManagement = () => {
               <div className="stat-value">{stats.inactiveCustomers}</div>
               <div className="stat-label">Inactive</div>
             </div>
-            {statusFilter === 'inactive' && <div className="active-indicator">●</div>}
+            {statusFilter === 'Inactive' && <div className="active-indicator">●</div>}
           </div>
           <div 
-            className={`stat-card stat-danger clickable ${statusFilter === 'blocked' ? 'active' : ''}`}
-            onClick={() => handleStatCardClick('blocked')}
+            className={`stat-card stat-danger clickable ${statusFilter === 'Blocked' ? 'active' : ''}`}
+            onClick={() => handleStatCardClick('Blocked')}
             title="Click to filter blocked customers"
           >
             <div className="stat-icon">🚫</div>
@@ -222,7 +222,7 @@ const CustomerManagement = () => {
               <div className="stat-value">{stats.blockedCustomers}</div>
               <div className="stat-label">Blocked</div>
             </div>
-            {statusFilter === 'blocked' && <div className="active-indicator">●</div>}
+            {statusFilter === 'Blocked' && <div className="active-indicator">●</div>}
           </div>
         </div>
       )}
