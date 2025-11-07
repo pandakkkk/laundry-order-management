@@ -39,12 +39,54 @@
   align-items: center;
   gap: 1rem;
   box-shadow: var(--shadow-md);
-  transition: transform 0.2s;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.stat-card.clickable {
+  cursor: pointer;
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
+}
+
+.stat-card.clickable:hover {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card.clickable:active {
+  transform: translateY(0);
+}
+
+.stat-card.active {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  border: 2px solid #3b82f6;
+}
+
+.stat-card.active:hover {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+}
+
+.stat-card .active-indicator {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  color: #3b82f6;
+  font-size: 1.5rem;
+  animation: pulse-customer 2s ease-in-out infinite;
+}
+
+@keyframes pulse-customer {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .stat-icon {

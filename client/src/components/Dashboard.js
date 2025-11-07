@@ -24,7 +24,7 @@ const Dashboard = memo(({
 }) => {
   return (
     <div className="dashboard">
-      {stats && <StatsCards stats={stats} onFilterChange={onFilterChange} />}
+      {stats && <StatsCards stats={stats} onFilterChange={onFilterChange} currentFilter={filterStatus} />}
       
       <div className="dashboard-controls">
         <div className="filter-controls">

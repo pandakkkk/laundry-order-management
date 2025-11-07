@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import './StatsCards.css';
 
-const StatsCards = memo(({ stats, onFilterChange }) => {
+const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
   const cards = [
     {
       title: 'Total Orders',
@@ -97,21 +97,42 @@ const StatsCards = memo(({ stats, onFilterChange }) => {
     }
   ];
 
+  const handleCardClick = (card) => {
+    if (card.filter) {
+      // If clicking the same card, clear the filter
+      if (currentFilter === card.filter) {
+        onFilterChange('');
+      } else {
+        onFilterChange(card.filter);
+      }
+    } else if (card.title === 'Total Orders') {
+      // Clicking Total Orders clears all filters
+      onFilterChange('');
+    }
+  };
+
   return (
     <div className="stats-cards">
-      {cards.map((card, index) => (
-        <div 
-          key={index} 
-          className={`stat-card ${card.color} ${card.filter ? 'clickable' : ''}`}
-          onClick={() => card.filter && onFilterChange(card.filter)}
-        >
-          <div className="stat-icon">{card.icon}</div>
-          <div className="stat-content">
-            <div className="stat-value">{card.value}</div>
-            <div className="stat-title">{card.title}</div>
+      {cards.map((card, index) => {
+        const isActive = currentFilter === card.filter || (currentFilter === '' && card.title === 'Total Orders');
+        const isClickable = card.filter || card.title === 'Total Orders';
+        
+        return (
+          <div 
+            key={index} 
+            className={`stat-card ${card.color} ${isClickable ? 'clickable' : ''} ${isActive ? 'active' : ''}`}
+            onClick={() => handleCardClick(card)}
+            title={card.filter ? `Click to filter by ${card.title}` : card.title === 'Total Orders' ? 'Click to show all orders' : ''}
+          >
+            <div className="stat-icon">{card.icon}</div>
+            <div className="stat-content">
+              <div className="stat-value">{card.value}</div>
+              <div className="stat-title">{card.title}</div>
+            </div>
+            {isActive && isClickable && <div className="active-indicator">●</div>}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 });

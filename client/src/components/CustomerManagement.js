@@ -138,6 +138,15 @@ const CustomerManagement = () => {
     setStatusFilter(e.target.value);
   };
 
+  const handleStatCardClick = (status) => {
+    // If clicking the same status, clear the filter
+    if (statusFilter === status) {
+      setStatusFilter('');
+    } else {
+      setStatusFilter(status);
+    }
+  };
+
   if (!can(PERMISSIONS.CUSTOMER_VIEW)) {
     return (
       <div className="permission-denied">
@@ -167,33 +176,53 @@ const CustomerManagement = () => {
       {/* Stats Cards */}
       {stats && (
         <div className="cm-stats">
-          <div className="stat-card">
+          <div 
+            className={`stat-card clickable ${statusFilter === '' ? 'active' : ''}`}
+            onClick={() => handleStatCardClick('')}
+            title="Click to show all customers"
+          >
             <div className="stat-icon">👥</div>
             <div className="stat-info">
               <div className="stat-value">{stats.totalCustomers}</div>
               <div className="stat-label">Total Customers</div>
             </div>
+            {statusFilter === '' && <div className="active-indicator">●</div>}
           </div>
-          <div className="stat-card stat-success">
+          <div 
+            className={`stat-card stat-success clickable ${statusFilter === 'active' ? 'active' : ''}`}
+            onClick={() => handleStatCardClick('active')}
+            title="Click to filter active customers"
+          >
             <div className="stat-icon">✅</div>
             <div className="stat-info">
               <div className="stat-value">{stats.activeCustomers}</div>
               <div className="stat-label">Active</div>
             </div>
+            {statusFilter === 'active' && <div className="active-indicator">●</div>}
           </div>
-          <div className="stat-card stat-warning">
+          <div 
+            className={`stat-card stat-warning clickable ${statusFilter === 'inactive' ? 'active' : ''}`}
+            onClick={() => handleStatCardClick('inactive')}
+            title="Click to filter inactive customers"
+          >
             <div className="stat-icon">⏸️</div>
             <div className="stat-info">
               <div className="stat-value">{stats.inactiveCustomers}</div>
               <div className="stat-label">Inactive</div>
             </div>
+            {statusFilter === 'inactive' && <div className="active-indicator">●</div>}
           </div>
-          <div className="stat-card stat-danger">
+          <div 
+            className={`stat-card stat-danger clickable ${statusFilter === 'blocked' ? 'active' : ''}`}
+            onClick={() => handleStatCardClick('blocked')}
+            title="Click to filter blocked customers"
+          >
             <div className="stat-icon">🚫</div>
             <div className="stat-info">
               <div className="stat-value">{stats.blockedCustomers}</div>
               <div className="stat-label">Blocked</div>
             </div>
+            {statusFilter === 'blocked' && <div className="active-indicator">●</div>}
           </div>
         </div>
       )}
