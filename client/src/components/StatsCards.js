@@ -114,14 +114,20 @@ const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
   return (
     <div className="stats-cards">
       {cards.map((card, index) => {
-        const isActive = currentFilter === card.filter || (currentFilter === '' && card.title === 'Total Orders');
+        // Only show as active if:
+        // 1. Card has a filter AND it matches currentFilter
+        // 2. OR card is "Total Orders" AND currentFilter is empty
+        const isActive = card.filter 
+          ? currentFilter === card.filter 
+          : (card.title === 'Total Orders' && currentFilter === '');
+        
         const isClickable = card.filter || card.title === 'Total Orders';
         
         return (
           <div 
             key={index} 
             className={`stat-card ${card.color} ${isClickable ? 'clickable' : ''} ${isActive ? 'active' : ''}`}
-            onClick={() => handleCardClick(card)}
+            onClick={() => isClickable ? handleCardClick(card) : null}
             title={card.filter ? `Click to filter by ${card.title}` : card.title === 'Total Orders' ? 'Click to show all orders' : ''}
           >
             <div className="stat-icon">{card.icon}</div>
