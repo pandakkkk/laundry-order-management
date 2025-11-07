@@ -32,9 +32,21 @@ function App() {
     try {
       const params = { 
         page,
-        limit: 20,
-        ...(filterStatus && { status: filterStatus })
+        limit: 20
       };
+      
+      // Handle special filters
+      if (filterStatus === 'IN_PROCESS') {
+        // Show all in-process statuses
+        params.inProcess = true;
+      } else if (filterStatus === 'TODAY') {
+        // Show today's orders
+        params.today = true;
+      } else if (filterStatus) {
+        // Normal status filter
+        params.status = filterStatus;
+      }
+      
       const data = await api.getOrders(params);
       setOrders(data.data);
       setPagination(data.pagination);

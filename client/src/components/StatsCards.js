@@ -22,8 +22,9 @@ const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
       value: stats.inProcessOrders,
       icon: '🔄',
       color: 'orange',
-      filter: '',
-      tooltip: 'Sorting + Spotting + Washing + Dry Cleaning + Drying + Ironing + Quality Check + Packing'
+      filter: 'IN_PROCESS', // Special filter for in-process orders
+      tooltip: 'Sorting + Spotting + Washing + Dry Cleaning + Drying + Ironing + Quality Check + Packing',
+      isMultiStatus: true
     },
     {
       title: 'Washing',
@@ -86,7 +87,8 @@ const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
       value: stats.todayOrders,
       icon: '📅',
       color: 'indigo',
-      filter: ''
+      filter: 'TODAY', // Special filter for today's orders
+      isSpecial: true
     },
     {
       title: 'Total Revenue',
@@ -114,21 +116,37 @@ const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
   return (
     <div className="stats-cards">
       {cards.map((card, index) => {
-        // Only show as active if:
-        // 1. Card has a filter AND it matches currentFilter
-        // 2. OR card is "Total Orders" AND currentFilter is empty
-        const isActive = card.filter 
-          ? currentFilter === card.filter 
-          : (card.title === 'Total Orders' && currentFilter === '');
+        // Determine if this card is active
+        let isActive = false;
+        if (card.title === 'Total Orders') {
+          // Total Orders is active when no filter
+          isActive = currentFilter === '';
+        } else if (card.filter) {
+          // All other cards with filters
+          isActive = currentFilter === card.filter;
+        }
         
+        // All cards with filters are clickable, plus Total Orders (which has empty filter but special title)
         const isClickable = card.filter || card.title === 'Total Orders';
+        
+        // Tooltip text
+        let tooltipText = '';
+        if (card.filter && card.filter !== 'IN_PROCESS' && card.filter !== 'TODAY') {
+          tooltipText = `Click to filter by ${card.title}`;
+        } else if (card.title === 'Total Orders') {
+          tooltipText = 'Click to show all orders';
+        } else if (card.filter === 'IN_PROCESS') {
+          tooltipText = 'Click to show all in-process orders (Sorting, Spotting, Washing, Dry Cleaning, Drying, Ironing, Quality Check, Packing)';
+        } else if (card.filter === 'TODAY') {
+          tooltipText = 'Click to show today\'s orders';
+        }
         
         return (
           <div 
             key={index} 
             className={`stat-card ${card.color} ${isClickable ? 'clickable' : ''} ${isActive ? 'active' : ''}`}
             onClick={() => isClickable ? handleCardClick(card) : null}
-            title={card.filter ? `Click to filter by ${card.title}` : card.title === 'Total Orders' ? 'Click to show all orders' : ''}
+            title={tooltipText}
           >
             <div className="stat-icon">{card.icon}</div>
             <div className="stat-content">

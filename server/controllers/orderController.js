@@ -9,16 +9,30 @@ exports.getAllOrders = async (req, res) => {
       endDate, 
       sortBy = '-orderDate',
       page = 1,
-      limit = 20
+      limit = 20,
+      inProcess,
+      today
     } = req.query;
     
     let query = {};
     
-    if (status) {
+    // Handle special "In Process" filter
+    if (inProcess === 'true') {
+      query.status = { 
+        $in: ['Sorting', 'Spotting', 'Washing', 'Dry Cleaning', 'Drying', 'Ironing', 'Quality Check', 'Packing'] 
+      };
+    } else if (status) {
       query.status = status;
     }
     
-    if (startDate || endDate) {
+    // Handle special "Today" filter
+    if (today === 'true') {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      query.orderDate = { $gte: todayStart, $lte: todayEnd };
+    } else if (startDate || endDate) {
       query.orderDate = {};
       if (startDate) query.orderDate.$gte = new Date(startDate);
       if (endDate) query.orderDate.$lte = new Date(endDate);
