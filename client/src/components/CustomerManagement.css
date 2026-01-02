@@ -41,6 +41,7 @@
   box-shadow: var(--shadow-md);
   transition: all 0.2s;
   position: relative;
+  color: #111827; /* Ensure text color is set */
 }
 
 .stat-card.clickable {
@@ -65,10 +66,20 @@
   background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
   border: 2px solid #3b82f6;
+  color: #111827; /* Ensure text remains visible on active state */
 }
 
 .stat-card.active:hover {
   background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #111827; /* Ensure text remains visible on hover */
+}
+
+.stat-card.active .stat-value {
+  color: #111827; /* Dark color for value */
+}
+
+.stat-card.active .stat-label {
+  color: #374151; /* Dark color for label */
 }
 
 .stat-card .active-indicator {
@@ -101,13 +112,14 @@
 .stat-value {
   font-size: 2rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #111827; /* Explicit dark color for better contrast */
 }
 
 .stat-label {
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: #374151; /* Explicit medium-dark color for better contrast */
   margin-top: 0.25rem;
+  font-weight: 500;
 }
 
 .stat-card.stat-success {
@@ -316,6 +328,10 @@
 
 .btn-icon:hover {
   transform: scale(1.2);
+}
+
+.btn-history:hover {
+  filter: drop-shadow(0 0 4px #8b5cf6);
 }
 
 .btn-edit:hover {

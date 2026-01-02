@@ -43,8 +43,9 @@ const testUsers = [
 
 const createTestUsers = async () => {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/laundry-orders');
+    // Connect to MongoDB Atlas (Vercel)
+    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://Vercel-Admin-laundry-order-management:zJDQFtuf2xbTzoJC@laundry-order-managemen.nvjptop.mongodb.net/laundry-orders?retryWrites=true&w=majority';
+    await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected to MongoDB\n');
 
     console.log('🔐 Creating test users for all roles...\n');

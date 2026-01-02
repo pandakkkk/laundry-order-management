@@ -14,6 +14,8 @@
     "seed-100": "node scripts/generate-100-orders.js",
     "seed-150": "node scripts/generate-100-orders.js",
     "seed-customers": "node scripts/seed-customers.js",
+    "seed-100-customers": "node scripts/generate-100-customers.js",
+    "test-notification": "node scripts/test-notification.js",
     "create-admin": "node scripts/create-admin.js",
     "create-test-users": "node scripts/create-test-users.js",
     "test-cloud": "node scripts/test-cloud-connection.js",
@@ -23,24 +25,31 @@
     "reset-password": "node scripts/reset-password.js",
     "seed-cloud": "node scripts/seed-cloud-fresh.js"
   },
-  "keywords": ["laundry", "order-monitoring", "dashboard"],
+  "keywords": [
+    "laundry",
+    "order-monitoring",
+    "dashboard"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "mongoose": "^8.0.0",
-    "body-parser": "^1.20.2",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
     "helmet": "^7.1.0",
-    "morgan": "^1.10.0",
-    "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
-    "express-validator": "^7.0.1"
+    "mongoose": "^8.0.0",
+    "morgan": "^1.10.0",
+    "pdfkit": "^0.17.2",
+    "qrcode": "^1.5.4",
+    "twilio": "^5.11.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1",
-    "concurrently": "^8.2.2"
+    "baseline-browser-mapping": "^2.9.11",
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.1"
   }
 }
-

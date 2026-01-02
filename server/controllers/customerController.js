@@ -1,4 +1,5 @@
 const Customer = require('../models/Customer');
+const Order = require('../models/Order');
 
 // Get all customers with pagination and filtering
 exports.getCustomers = async (req, res) => {
@@ -117,6 +118,83 @@ exports.searchByPhone = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to search customers' 
+    });
+  }
+};
+
+// Search customers by multiple fields
+exports.searchCustomers = async (req, res) => {
+  try {
+    const { q, field, page = 1, limit = 20 } = req.query;
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query is required'
+      });
+    }
+
+    let searchQuery;
+
+    // Field-specific search
+    if (field && field !== 'all') {
+      const fieldMap = {
+        'customerId': 'customerId',
+        'customerName': 'name',
+        'phoneNumber': 'phoneNumber'
+      };
+
+      const searchField = fieldMap[field];
+      if (searchField) {
+        searchQuery = { [searchField]: { $regex: q, $options: 'i' } };
+      } else {
+        // If invalid field, search all
+        searchQuery = {
+          $or: [
+            { name: { $regex: q, $options: 'i' } },
+            { phoneNumber: { $regex: q, $options: 'i' } },
+            { email: { $regex: q, $options: 'i' } },
+            { customerId: { $regex: q, $options: 'i' } }
+          ]
+        };
+      }
+    } else {
+      // Search all fields
+      searchQuery = {
+        $or: [
+          { name: { $regex: q, $options: 'i' } },
+          { phoneNumber: { $regex: q, $options: 'i' } },
+          { email: { $regex: q, $options: 'i' } },
+          { customerId: { $regex: q, $options: 'i' } }
+        ]
+      };
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const customers = await Customer.find(searchQuery)
+      .sort('-createdAt')
+      .limit(parseInt(limit))
+      .skip(skip);
+
+    const total = await Customer.countDocuments(searchQuery);
+
+    res.json({
+      success: true,
+      count: customers.length,
+      field: field,
+      data: customers,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error searching customers:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to search customers'
     });
   }
 };
@@ -308,6 +386,13 @@ exports.deleteCustomer = async (req, res) => {
 // Get customer statistics
 exports.getCustomerStats = async (req, res) => {
   try {
+    // Disable caching for stats - they change frequently
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
     const totalCustomers = await Customer.countDocuments();
     const activeCustomers = await Customer.countDocuments({ status: 'Active' });
     const inactiveCustomers = await Customer.countDocuments({ status: 'Inactive' });
@@ -341,6 +426,196 @@ exports.getCustomerStats = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to fetch customer statistics' 
+    });
+  }
+};
+
+// Get customer order history
+exports.getCustomerOrderHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 20, status, startDate, endDate } = req.query;
+
+    // Find customer by ID or phone
+    let customer = await Customer.findById(id).catch(() => null);
+    if (!customer) {
+      customer = await Customer.findOne({ phoneNumber: id });
+    }
+    if (!customer) {
+      customer = await Customer.findOne({ customerId: id });
+    }
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        error: 'Customer not found'
+      });
+    }
+
+    // Build query for orders
+    const query = {
+      $or: [
+        { customerId: customer.customerId || customer._id.toString() },
+        { phoneNumber: customer.phoneNumber }
+      ]
+    };
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (startDate || endDate) {
+      query.orderDate = {};
+      if (startDate) query.orderDate.$gte = new Date(startDate);
+      if (endDate) query.orderDate.$lte = new Date(endDate);
+    }
+
+    const skip = (page - 1) * limit;
+    const orders = await Order.find(query)
+      .sort({ orderDate: -1 })
+      .limit(parseInt(limit))
+      .skip(skip);
+
+    const total = await Order.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: {
+        customer: {
+          id: customer._id,
+          name: customer.name,
+          phoneNumber: customer.phoneNumber,
+          customerId: customer.customerId
+        },
+        orders,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching customer order history:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch customer order history'
+    });
+  }
+};
+
+// Get customer analytics
+exports.getCustomerAnalytics = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find customer by ID or phone
+    let customer = await Customer.findById(id).catch(() => null);
+    if (!customer) {
+      customer = await Customer.findOne({ phoneNumber: id });
+    }
+    if (!customer) {
+      customer = await Customer.findOne({ customerId: id });
+    }
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        error: 'Customer not found'
+      });
+    }
+
+    // Get all orders for this customer
+    const orders = await Order.find({
+      $or: [
+        { customerId: customer.customerId || customer._id.toString() },
+        { phoneNumber: customer.phoneNumber }
+      ]
+    }).sort({ orderDate: -1 });
+
+    // Calculate analytics
+    const totalOrders = orders.length;
+    const totalSpent = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+    const averageOrderValue = totalOrders > 0 ? totalSpent / totalOrders : 0;
+
+    // Calculate favorite services/products
+    const serviceCount = {};
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        const service = item.description.split('(')[0].trim(); // Get main service name
+        serviceCount[service] = (serviceCount[service] || 0) + item.quantity;
+      });
+    });
+    const favoriteServices = Object.entries(serviceCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([service, count]) => ({ service, count }));
+
+    // Calculate order frequency
+    let orderFrequency = 'New';
+    if (totalOrders > 0) {
+      const daysSinceFirstOrder = (new Date() - orders[orders.length - 1].orderDate) / (1000 * 60 * 60 * 24);
+      const ordersPerMonth = totalOrders / (daysSinceFirstOrder / 30);
+      
+      if (ordersPerMonth >= 4) {
+        orderFrequency = 'Regular';
+      } else if (ordersPerMonth >= 1) {
+        orderFrequency = 'Occasional';
+      }
+    }
+
+    // Get order status breakdown
+    const statusBreakdown = {};
+    orders.forEach(order => {
+      statusBreakdown[order.status] = (statusBreakdown[order.status] || 0) + 1;
+    });
+
+    // Get payment method breakdown
+    const paymentMethodBreakdown = {};
+    orders.forEach(order => {
+      paymentMethodBreakdown[order.paymentMethod] = (paymentMethodBreakdown[order.paymentMethod] || 0) + 1;
+    });
+
+    // Get monthly spending trend (last 6 months)
+    const monthlySpending = {};
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    orders
+      .filter(order => new Date(order.orderDate) >= sixMonthsAgo)
+      .forEach(order => {
+        const month = new Date(order.orderDate).toLocaleString('en-US', { month: 'short', year: 'numeric' });
+        monthlySpending[month] = (monthlySpending[month] || 0) + order.totalAmount;
+      });
+
+    res.json({
+      success: true,
+      data: {
+        customer: {
+          id: customer._id,
+          name: customer.name,
+          phoneNumber: customer.phoneNumber,
+          customerId: customer.customerId
+        },
+        analytics: {
+          totalOrders,
+          totalSpent,
+          averageOrderValue: Math.round(averageOrderValue * 100) / 100,
+          orderFrequency,
+          favoriteServices,
+          lastOrderDate: customer.lastOrderDate,
+          statusBreakdown,
+          paymentMethodBreakdown,
+          monthlySpending
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching customer analytics:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch customer analytics'
     });
   }
 };

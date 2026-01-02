@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import './App.css';
-import Dashboard from './components/Dashboard';
+import OrderTracker from './components/OrderTracker';
 import InteractiveOrderForm from './components/InteractiveOrderForm';
 import OrderDetails from './components/OrderDetails';
-import CustomerManagement from './components/CustomerManagement';
+import CustomerTracker from './components/CustomerTracker';
+import CustomerForm from './components/CustomerForm';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './context/AuthContext';
@@ -15,123 +16,45 @@ import api from './services/api';
 function App() {
   const { isAuthenticated, user, logout } = useAuth();
   const { can } = usePermissions();
-  const [orders, setOrders] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [orderStats, setOrderStats] = useState(null);
+  const [customerStats, setCustomerStats] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchField, setSearchField] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showOrderForm, setShowOrderForm] = useState(false);
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
 
-  // Stable functions using useCallback
-  const fetchOrders = useCallback(async (page = 1) => {
-    try {
-      const params = { 
-        page,
-        limit: 20
-      };
-      
-      // Handle special filters
-      if (filterStatus === 'IN_PROCESS') {
-        // Show all in-process statuses
-        params.inProcess = true;
-      } else if (filterStatus === 'TODAY') {
-        // Show today's orders
-        params.today = true;
-      } else if (filterStatus) {
-        // Normal status filter
-        params.status = filterStatus;
-      }
-      
-      const data = await api.getOrders(params);
-      setOrders(data.data);
-      setPagination(data.pagination);
-      setCurrentPage(page);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [filterStatus]);
-
-  const fetchStats = useCallback(async () => {
+  // Fetch order stats
+  const fetchOrderStats = useCallback(async () => {
     try {
       const data = await api.getOrderStats();
-      setStats(data.data);
+      setOrderStats(data.data);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error fetching order stats:', error);
     }
   }, []);
 
-  const performSearch = useCallback(async () => {
-    if (!searchQuery.trim()) {
-      fetchOrders(1); // Reset to page 1 when clearing search
-      return;
-    }
-
+  // Fetch customer stats
+  const fetchCustomerStats = useCallback(async () => {
     try {
-      setIsSearching(true);
-      // Search ALL records (no pagination on search)
-      const data = await api.searchOrders(searchQuery, searchField);
-      setOrders(data.data);
-      setPagination(null); // Clear pagination when searching
+      const data = await api.getCustomerStats();
+      setCustomerStats(data.data);
     } catch (error) {
-      console.error('Error searching orders:', error);
-      alert('Search failed. Please try again.');
-      // If search fails, fall back to all orders
-      fetchOrders(1);
-    } finally {
-      setIsSearching(false);
+      console.error('Error fetching customer stats:', error);
     }
-  }, [searchQuery, searchField, fetchOrders]);
+  }, []);
 
-  // Initial load and auto-refresh
+  // Load stats on mount
   useEffect(() => {
     if (isAuthenticated) {
-      // Only fetch if not in search mode
-      if (!searchQuery.trim()) {
-        fetchOrders(currentPage);
-      }
-      fetchStats();
-      
-      // Auto-refresh every 30 seconds
-      // BUT: Don't refresh if form is open or user is searching
-      const interval = setInterval(() => {
-        // Skip refresh if form is open (user is adding/editing order)
-        if (showForm) return;
-        
-        fetchStats();
-        // Only refresh orders if not in search mode
-        if (!searchQuery.trim()) {
-          fetchOrders(currentPage);
-        }
-      }, 30000);
-      
-      return () => clearInterval(interval);
+      fetchOrderStats();
+      fetchCustomerStats();
     }
-  }, [isAuthenticated, filterStatus, searchQuery, currentPage, showForm, fetchOrders, fetchStats]);
-
-  const handleSearchInputChange = useCallback((query) => {
-    setSearchQuery(query);
-  }, []);
-
-  const handleSearchClick = useCallback(() => {
-    performSearch();
-  }, [performSearch]);
-  
-  const handleFieldChange = useCallback((field) => {
-    setSearchField(field);
-  }, []);
+  }, [isAuthenticated, fetchOrderStats, fetchCustomerStats]);
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
       await api.updateOrderStatus(orderId, newStatus);
-      fetchOrders(currentPage); // Stay on current page
-      fetchStats();
+      fetchOrderStats(); // Refresh stats
       if (selectedOrder && selectedOrder._id === orderId) {
         const updatedOrder = await api.getOrderById(orderId);
         setSelectedOrder(updatedOrder.data);
@@ -145,9 +68,8 @@ function App() {
   const handleCreateOrder = async (orderData) => {
     try {
       await api.createOrder(orderData);
-      setShowForm(false);
-      fetchOrders(1); // Go to first page after creating
-      fetchStats();
+      setShowOrderForm(false);
+      fetchOrderStats(); // Refresh stats
       alert('Order created successfully!');
     } catch (error) {
       console.error('Error creating order:', error);
@@ -155,21 +77,6 @@ function App() {
     }
   };
 
-  const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm('Are you sure you want to delete this order?')) {
-      return;
-    }
-    
-    try {
-      await api.deleteOrder(orderId);
-      setSelectedOrder(null);
-      fetchOrders(currentPage); // Stay on current page
-      fetchStats();
-    } catch (error) {
-      console.error('Error deleting order:', error);
-      alert('Failed to delete order');
-    }
-  };
 
   const AppHeader = () => {
     const location = useLocation();
@@ -204,8 +111,8 @@ function App() {
               </div>
             )}
             {location.pathname === '/' && can(PERMISSIONS.ORDER_CREATE) && (
-              <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-                {showForm ? 'Close Form' : '+ New Order'}
+              <button className="btn btn-primary" onClick={() => setShowOrderForm(!showOrderForm)}>
+                {showOrderForm ? 'Close Form' : '+ New Order'}
               </button>
             )}
             <button className="btn btn-secondary" onClick={logout}>
@@ -222,30 +129,19 @@ function App() {
       <AppHeader />
 
       <main className="app-main">
-        {showForm && (
+        {showOrderForm && (
           <div className="interactive-form-overlay">
-            <InteractiveOrderForm onSubmit={handleCreateOrder} onCancel={() => setShowForm(false)} />
+            <InteractiveOrderForm onSubmit={handleCreateOrder} onCancel={() => setShowOrderForm(false)} />
           </div>
         )}
 
-        <Dashboard
-          orders={orders}
-          stats={stats}
-          loading={loading}
-          filterStatus={filterStatus}
-          searchQuery={searchQuery}
-          isSearching={isSearching}
-          searchField={searchField}
-          pagination={pagination}
-          currentPage={currentPage}
-          onFilterChange={setFilterStatus}
-          onSearchInputChange={handleSearchInputChange}
-          onSearchClick={handleSearchClick}
-          onFieldChange={handleFieldChange}
+        <OrderTracker
+          stats={orderStats}
           onOrderSelect={setSelectedOrder}
           onStatusUpdate={handleStatusUpdate}
-          onRefresh={() => fetchOrders(currentPage)}
-          onPageChange={fetchOrders}
+          onRefresh={fetchOrderStats}
+          showForm={showOrderForm}
+          onToggleForm={() => setShowOrderForm(!showOrderForm)}
         />
 
         {selectedOrder && (
@@ -253,18 +149,87 @@ function App() {
             order={selectedOrder}
             onClose={() => setSelectedOrder(null)}
             onStatusUpdate={handleStatusUpdate}
-            onDelete={handleDeleteOrder}
+            onDelete={async (orderId) => {
+              if (!window.confirm('Are you sure you want to delete this order?')) {
+                return;
+              }
+              try {
+                await api.deleteOrder(orderId);
+                setSelectedOrder(null);
+                fetchOrderStats();
+                alert('Order deleted successfully');
+              } catch (error) {
+                console.error('Error deleting order:', error);
+                alert('Failed to delete order');
+              }
+            }}
           />
         )}
       </main>
     </>
   );
 
+  const handleCustomerEdit = (customer) => {
+    setSelectedCustomer(customer);
+    setShowCustomerForm(true);
+  };
+
+  const handleCustomerDelete = async (customerId) => {
+    if (!window.confirm('Are you sure you want to delete this customer?')) {
+      return;
+    }
+
+    try {
+      await api.deleteCustomer(customerId);
+      fetchCustomerStats();
+      alert('Customer deleted successfully');
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      alert('Failed to delete customer');
+    }
+  };
+
+  const handleCustomerSubmit = async (customerData) => {
+    try {
+      if (selectedCustomer) {
+        await api.updateCustomer(selectedCustomer._id, customerData);
+        alert('Customer updated successfully!');
+      } else {
+        await api.createCustomer(customerData);
+        alert('Customer created successfully!');
+      }
+      setShowCustomerForm(false);
+      setSelectedCustomer(null);
+      fetchCustomerStats();
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      alert('Failed to save customer: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
   const CustomerPage = () => (
     <>
       <AppHeader />
       <main className="app-main">
-        <CustomerManagement />
+        {showCustomerForm && (
+          <div className="interactive-form-overlay">
+            <CustomerForm
+              customer={selectedCustomer}
+              onSubmit={handleCustomerSubmit}
+              onClose={() => {
+                setShowCustomerForm(false);
+                setSelectedCustomer(null);
+              }}
+            />
+          </div>
+        )}
+
+        <CustomerTracker
+          stats={customerStats}
+          onCustomerSelect={setSelectedCustomer}
+          onCustomerEdit={handleCustomerEdit}
+          onCustomerDelete={handleCustomerDelete}
+        />
       </main>
     </>
   );

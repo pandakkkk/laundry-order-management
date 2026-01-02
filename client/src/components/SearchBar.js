@@ -59,13 +59,9 @@ const SearchBar = memo(({ value, onChange, placeholder, isSearching, searchField
 
       <div className="search-bar-with-button">
         <div className="search-bar">
-          <span className="search-icon">
-            {isSearching ? (
-              <span className="search-loading">⏳</span>
-            ) : (
-              '🔍'
-            )}
-          </span>
+          {isSearching && (
+            <span className="search-loading">⏳</span>
+          )}
           <input
             ref={inputRef}
             type="text"

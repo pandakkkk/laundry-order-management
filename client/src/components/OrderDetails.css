@@ -300,6 +300,59 @@
   line-height: 1.6;
 }
 
+/* Rack Management Styles */
+.rack-selection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.rack-button {
+  padding: 0.5rem 1rem;
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  color: #333;
+  min-width: 80px;
+}
+
+.rack-button:hover:not(:disabled) {
+  border-color: #4CAF50;
+  background: #f1f8f4;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.rack-button.active {
+  border-color: #4CAF50;
+  background: #4CAF50;
+  color: white;
+  font-weight: 600;
+}
+
+.rack-button.current {
+  border-color: #2196F3;
+  background: #E3F2FD;
+  color: #1976D2;
+  font-weight: 600;
+}
+
+.rack-button.current.active {
+  border-color: #4CAF50;
+  background: #4CAF50;
+  color: white;
+}
+
+.rack-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .modal-footer {
   padding: 1.5rem;
   border-top: 1px solid var(--border-color);

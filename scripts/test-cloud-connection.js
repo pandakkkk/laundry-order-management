@@ -1,16 +1,14 @@
 const mongoose = require('mongoose');
 
 // MongoDB Atlas Connection String
-const CLOUD_URI = "mongodb+srv://Vercel-Admin-laundry-order-management:YTkHpuE20MEI9ZkK@laundry-order-managemen.nvjptop.mongodb.net/?retryWrites=true&w=majority";
+const CLOUD_URI = "mongodb+srv://Vercel-Admin-laundry-order-management:zJDQFtuf2xbTzoJC@laundry-order-managemen.nvjptop.mongodb.net/laundry-orders?retryWrites=true&w=majority";
 
 async function testConnection() {
   try {
     console.log('🔗 Testing connection to MongoDB Atlas...');
     console.log('📍 Cluster: laundry-order-managemen.nvjptop.mongodb.net');
     
-    await mongoose.connect(CLOUD_URI, {
-      dbName: 'laundry-orders'
-    });
+    await mongoose.connect(CLOUD_URI);
     
     console.log('✅ Successfully connected to MongoDB Atlas!');
     console.log('📊 Database name:', mongoose.connection.db.databaseName);

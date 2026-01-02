@@ -101,6 +101,11 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  rackNumber: {
+    type: String,
+    enum: ['', 'Rack 1', 'Rack 2', 'Rack 3', 'Rack 4', 'Rack 5', 'Rack 6', 'Rack 7', 'Rack 8'],
+    default: ''
+  },
   notes: {
     type: String,
     default: ''

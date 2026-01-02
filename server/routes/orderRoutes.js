@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/orderController');
+const receiptController = require('../controllers/receiptController');
 const { checkPermission, checkAnyPermission } = require('../middleware/auth');
 const { PERMISSIONS } = require('../config/permissions');
 
@@ -15,6 +16,9 @@ router.get('/', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getAllO
 
 // Get order by ticket number
 router.get('/ticket/:ticketNumber', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getOrderByTicketNumber);
+
+// Generate receipt (must be before /:id route)
+router.get('/:id/receipt', checkPermission(PERMISSIONS.ORDER_VIEW), receiptController.generateReceipt);
 
 // Get order by ID
 router.get('/:id', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getOrderById);

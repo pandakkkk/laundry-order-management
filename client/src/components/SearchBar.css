@@ -86,16 +86,19 @@
   opacity: 0.6;
 }
 
-.search-icon {
+.search-loading {
   position: absolute;
   left: 1rem;
   font-size: 1rem;
   pointer-events: none;
+  z-index: 1;
+  display: inline-block;
+  animation: pulse 1s ease-in-out infinite;
 }
 
 .search-input {
   width: 100%;
-  padding: 0.625rem 2.5rem;
+  padding: 0.625rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
   font-size: 0.875rem;
@@ -129,10 +132,6 @@
   color: var(--text-primary);
 }
 
-.search-loading {
-  display: inline-block;
-  animation: pulse 1s ease-in-out infinite;
-}
 
 @keyframes pulse {
   0%, 100% {

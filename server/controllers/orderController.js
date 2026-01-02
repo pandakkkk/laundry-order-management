@@ -118,6 +118,12 @@ exports.createOrder = async (req, res) => {
   try {
     const order = await Order.create(req.body);
     
+    // Send order confirmation notification (async, don't wait)
+    const notificationService = require('../services/notificationService');
+    const notificationType = process.env.NOTIFICATION_TYPE || 'both'; // sms, whatsapp, or both
+    notificationService.sendOrderNotification(order, 'confirmation', notificationType)
+      .catch(err => console.error('Failed to send order confirmation notification:', err));
+    
     res.status(201).json({
       success: true,
       data: order
@@ -135,6 +141,10 @@ exports.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
     
+    // Get previous status before update
+    const previousOrder = await Order.findById(req.params.id);
+    const previousStatus = previousOrder ? previousOrder.status : null;
+    
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { status, updatedAt: Date.now() },
@@ -146,6 +156,23 @@ exports.updateOrderStatus = async (req, res) => {
         success: false,
         error: 'Order not found'
       });
+    }
+    
+    // Send notifications based on status change (async, don't wait)
+    const notificationService = require('../services/notificationService');
+    const notificationType = process.env.NOTIFICATION_TYPE || 'both';
+    
+    // Send notification for important status changes
+    if (status === 'Ready for Pickup') {
+      notificationService.sendOrderNotification(order, 'ready', notificationType)
+        .catch(err => console.error('Failed to send ready notification:', err));
+    } else if (status === 'Delivered') {
+      notificationService.sendOrderNotification(order, 'delivered', notificationType)
+        .catch(err => console.error('Failed to send delivered notification:', err));
+    } else if (['Sorting', 'Washing', 'Ironing', 'Quality Check', 'Packing', 'Out for Delivery'].includes(status)) {
+      // Send status update for key processing stages
+      notificationService.sendOrderNotification(order, 'statusUpdate', notificationType, previousStatus)
+        .catch(err => console.error('Failed to send status update notification:', err));
     }
     
     res.json({
@@ -215,6 +242,13 @@ exports.deleteOrder = async (req, res) => {
 // Get order statistics
 exports.getOrderStats = async (req, res) => {
   try {
+    // Disable caching for stats - they change frequently
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
     const totalOrders = await Order.countDocuments();
     
     // Count by each status

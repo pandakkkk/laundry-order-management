@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 // Connection strings
 const LOCAL_URI = 'mongodb://localhost:27017/laundry-orders';
-const CLOUD_URI = "mongodb+srv://Vercel-Admin-laundry-order-management:YTkHpuE20MEI9ZkK@laundry-order-managemen.nvjptop.mongodb.net/?retryWrites=true&w=majority";
+const CLOUD_URI = "mongodb+srv://Vercel-Admin-laundry-order-management:zJDQFtuf2xbTzoJC@laundry-order-managemen.nvjptop.mongodb.net/laundry-orders?retryWrites=true&w=majority";
 
 // Collections to migrate
 const COLLECTIONS = ['users', 'orders', 'customers'];
@@ -95,7 +95,7 @@ async function migrateData() {
     // Show what to do next
     console.log('\n📝 Next Steps:');
     console.log('1. Create/Update your .env file with:');
-    console.log('   MONGODB_URI="mongodb+srv://Vercel-Admin-laundry-order-management:YTkHpuE20MEI9ZkK@laundry-order-managemen.nvjptop.mongodb.net/?retryWrites=true&w=majority"');
+    console.log('   MONGODB_URI="mongodb+srv://Vercel-Admin-laundry-order-management:zJDQFtuf2xbTzoJC@laundry-order-managemen.nvjptop.mongodb.net/laundry-orders?retryWrites=true&w=majority"');
     console.log('\n2. Restart your server:');
     console.log('   pkill -f nodemon');
     console.log('   npm run dev');

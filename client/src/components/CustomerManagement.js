@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './CustomerManagement.css';
 import CustomerForm from './CustomerForm';
+import CustomerOrderHistory from './CustomerOrderHistory';
 import { usePermissions } from '../context/PermissionsContext';
 import { PERMISSIONS } from '../config/permissions';
 import api from '../services/api';
@@ -12,16 +13,26 @@ const CustomerManagement = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showOrderHistory, setShowOrderHistory] = useState(false);
+  const [historyCustomer, setHistoryCustomer] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [stats, setStats] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState(null);
   const isInitialMount = useRef(true);
+  const isFetchingRef = useRef(false);
 
-  const fetchCustomers = useCallback(async (page = 1) => {
+  const fetchCustomers = useCallback(async (page = 1, skipLoading = false) => {
+    // Prevent duplicate calls
+    if (isFetchingRef.current) return;
+    
     try {
-      setLoading(true);
+      isFetchingRef.current = true;
+      if (!skipLoading) {
+        setLoading(true);
+      }
+      
       const params = {
         page,
         limit: 20,
@@ -37,6 +48,7 @@ const CustomerManagement = () => {
       alert('Failed to load customers');
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [searchQuery, statusFilter]);
 
@@ -87,6 +99,11 @@ const CustomerManagement = () => {
   const handleEditCustomer = (customer) => {
     setSelectedCustomer(customer);
     setShowForm(true);
+  };
+
+  const handleViewOrderHistory = (customer) => {
+    setHistoryCustomer(customer);
+    setShowOrderHistory(true);
   };
 
   const handleDeleteCustomer = async (customer) => {
@@ -352,6 +369,15 @@ const CustomerManagement = () => {
                   </td>
                   <td>
                     <div className="action-buttons">
+                      {can(PERMISSIONS.CUSTOMER_VIEW) && (
+                        <button
+                          className="btn-icon btn-history"
+                          onClick={() => handleViewOrderHistory(customer)}
+                          title="View Order History"
+                        >
+                          📊
+                        </button>
+                      )}
                       {can(PERMISSIONS.CUSTOMER_UPDATE) && (
                         <button
                           className="btn-icon btn-edit"
@@ -396,6 +422,17 @@ const CustomerManagement = () => {
           onClose={() => {
             setShowForm(false);
             setSelectedCustomer(null);
+          }}
+        />
+      )}
+
+      {/* Customer Order History Modal */}
+      {showOrderHistory && historyCustomer && (
+        <CustomerOrderHistory
+          customer={historyCustomer}
+          onClose={() => {
+            setShowOrderHistory(false);
+            setHistoryCustomer(null);
           }}
         />
       )}

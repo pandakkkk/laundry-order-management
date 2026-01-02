@@ -3,10 +3,9 @@ import './OrderTable.css';
 import { format } from 'date-fns';
 import { usePermissions } from '../context/PermissionsContext';
 import { PERMISSIONS } from '../config/permissions';
-import SearchBar from './SearchBar';
 import Pagination from './Pagination';
 
-const OrderTable = memo(({ orders, loading, searchQuery, isSearching, searchField, pagination, currentPage, onSearchInputChange, onSearchClick, onFieldChange, onOrderSelect, onStatusUpdate, onPageChange }) => {
+const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSelect, onStatusUpdate, onPageChange }) => {
   const { can } = usePermissions();
   
   const getStatusClass = useCallback((status) => {
@@ -101,17 +100,6 @@ const OrderTable = memo(({ orders, loading, searchQuery, isSearching, searchFiel
 
   return (
     <div className="table-container">
-      <div className="table-search-wrapper">
-        <SearchBar 
-          value={searchQuery} 
-          onChange={onSearchInputChange}
-          searchField={searchField}
-          onFieldChange={onFieldChange}
-          onSearchClick={onSearchClick}
-          isSearching={isSearching}
-        />
-      </div>
-      
       <div className="table-wrapper">
         <table className="order-table">
           <thead>

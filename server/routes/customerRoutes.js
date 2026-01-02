@@ -6,11 +6,14 @@ const {
   getCustomers,
   getCustomer,
   searchByPhone,
+  searchCustomers,
   createCustomer,
   updateCustomer,
   deleteCustomer,
   getCustomerStats,
-  bulkImportCustomers
+  bulkImportCustomers,
+  getCustomerOrderHistory,
+  getCustomerAnalytics
 } = require('../controllers/customerController');
 
 // All routes require authentication
@@ -32,6 +35,24 @@ router.get('/stats',
 router.get('/search',
   checkPermission(PERMISSIONS.CUSTOMER_VIEW),
   searchByPhone
+);
+
+// Search customers by multiple fields
+router.get('/search/query',
+  checkPermission(PERMISSIONS.CUSTOMER_VIEW),
+  searchCustomers
+);
+
+// Get customer order history (must be before /:id route)
+router.get('/:id/orders',
+  checkPermission(PERMISSIONS.CUSTOMER_VIEW),
+  getCustomerOrderHistory
+);
+
+// Get customer analytics (must be before /:id route)
+router.get('/:id/analytics',
+  checkPermission(PERMISSIONS.CUSTOMER_VIEW),
+  getCustomerAnalytics
 );
 
 // Get single customer
