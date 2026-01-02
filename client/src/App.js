@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import './App.css';
 import OrderTracker from './components/OrderTracker';

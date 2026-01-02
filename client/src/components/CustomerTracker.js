@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './CustomerTracker.css';
-import { detectSearchType, getSearchTypeLabel, getPlaceholder } from '../utils/smartSearch';
+import { detectSearchType, getPlaceholder } from '../utils/smartSearch';
 import api from '../services/api';
 import CustomerOrderHistory from './CustomerOrderHistory';
 import Pagination from './Pagination';
@@ -36,7 +36,8 @@ const CustomerTracker = ({
         setSearchType(detected);
       }
     }
-  }, [searchQuery, isFieldManuallySelected]); // Removed searchType from deps to avoid conflicts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, isFieldManuallySelected]); // searchType intentionally excluded to avoid infinite loop
 
   // Manual search (only when user clicks search or presses Enter)
   const performSearch = useCallback(async (page = 1) => {
@@ -143,7 +144,7 @@ const CustomerTracker = ({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [searchQuery, performSearch]);
+  }, [searchQuery, performSearch, handleClearAll]);
 
   // Focus search on mount
   useEffect(() => {

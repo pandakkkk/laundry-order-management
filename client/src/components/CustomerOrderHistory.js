@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import './CustomerOrderHistory.css';
 import api from '../services/api';
@@ -10,13 +10,9 @@ const CustomerOrderHistory = ({ customer, onClose }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState(null);
 
-  useEffect(() => {
-    if (customer) {
-      fetchOrderHistory(1);
-    }
-  }, [customer]);
-
-  const fetchOrderHistory = async (page = 1) => {
+  const fetchOrderHistory = useCallback(async (page = 1) => {
+    if (!customer) return;
+    
     try {
       setLoading(true);
       const response = await api.getCustomerOrderHistory(customer._id || customer.id, {
@@ -32,7 +28,13 @@ const CustomerOrderHistory = ({ customer, onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [customer]);
+
+  useEffect(() => {
+    if (customer) {
+      fetchOrderHistory(1);
+    }
+  }, [customer, fetchOrderHistory]);
 
 
   const formatDate = (date) => {

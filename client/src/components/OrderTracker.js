@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './OrderTracker.css';
-import { detectSearchType, getSearchTypeLabel, getPlaceholder } from '../utils/smartSearch';
+import { detectSearchType, getPlaceholder } from '../utils/smartSearch';
 import api from '../services/api';
 import OrderTable from './OrderTable';
 import StatsCards from './StatsCards';
@@ -34,7 +34,8 @@ const OrderTracker = ({
         setSearchType(detected);
       }
     }
-  }, [searchQuery, isFieldManuallySelected]); // Removed searchType from deps to avoid conflicts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, isFieldManuallySelected]); // searchType intentionally excluded to avoid infinite loop
 
   // Manual search (only when user clicks search or presses Enter)
   const performSearch = useCallback(async () => {
