@@ -6,6 +6,8 @@ import InteractiveOrderForm from './components/InteractiveOrderForm';
 import OrderDetails from './components/OrderDetails';
 import CustomerTracker from './components/CustomerTracker';
 import CustomerForm from './components/CustomerForm';
+import UserManagement from './components/UserManagement';
+import DeliveryDashboard from './components/DeliveryDashboard';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import ReceiptModal from './components/ReceiptModal';
@@ -125,6 +127,22 @@ function App() {
                   className={`nav-link ${location.pathname === '/customers' ? 'active' : ''}`}
                 >
                   👥 Customers
+                </Link>
+              )}
+              {can(PERMISSIONS.USER_VIEW) && (
+                <Link 
+                  to="/users" 
+                  className={`nav-link ${location.pathname === '/users' ? 'active' : ''}`}
+                >
+                  🔐 Users
+                </Link>
+              )}
+              {can(PERMISSIONS.DELIVERY_VIEW) && (
+                <Link 
+                  to="/delivery" 
+                  className={`nav-link ${location.pathname === '/delivery' ? 'active' : ''}`}
+                >
+                  🚴 Delivery
                 </Link>
               )}
             </nav>
@@ -268,6 +286,24 @@ function App() {
     </>
   );
 
+  const UserManagementPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main">
+        <UserManagement />
+      </main>
+    </>
+  );
+
+  const DeliveryPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main delivery-main">
+        <DeliveryDashboard />
+      </main>
+    </>
+  );
+
   return (
     <div className="App">
       <Routes>
@@ -282,6 +318,16 @@ function App() {
         <Route path="/customers" element={
           <ProtectedRoute>
             <CustomerPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/users" element={
+          <ProtectedRoute>
+            <UserManagementPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/delivery" element={
+          <ProtectedRoute>
+            <DeliveryPage />
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />

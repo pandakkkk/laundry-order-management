@@ -22,7 +22,12 @@ exports.getAllOrders = async (req, res) => {
         $in: ['Sorting', 'Spotting', 'Washing', 'Dry Cleaning', 'Drying', 'Ironing', 'Quality Check', 'Packing'] 
       };
     } else if (status) {
-      query.status = status;
+      // Handle multiple statuses (comma-separated)
+      if (status.includes(',')) {
+        query.status = { $in: status.split(',').map(s => s.trim()) };
+      } else {
+        query.status = status;
+      }
     }
     
     // Handle special "Today" filter

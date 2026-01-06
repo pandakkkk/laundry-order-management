@@ -20,10 +20,29 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Name is required'],
     trim: true
   },
+  phone: {
+    type: String,
+    trim: true
+  },
   role: {
     type: String,
-    enum: ['admin', 'manager', 'staff', 'frontdesk', 'delivery', 'accountant'],
+    enum: [
+      'admin',        // Full system access
+      'manager',      // Manage operations, reports, staff
+      'hr',           // HR department - manage employees
+      'telecalling',  // Telecalling - customer follow-up
+      'backoffice',   // Back office operations
+      'delivery',     // Delivery personnel
+      'frontdesk',    // Front desk operations
+      'staff',        // General staff
+      'accountant'    // Financial operations
+    ],
     default: 'staff'
+  },
+  department: {
+    type: String,
+    enum: ['Operations', 'HR', 'Finance', 'Delivery', 'Customer Service', 'Management'],
+    default: 'Operations'
   },
   isActive: {
     type: Boolean,
@@ -35,6 +54,10 @@ const userSchema = new mongoose.Schema({
   },
   lastLogin: {
     type: Date
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 });
 
@@ -73,4 +96,3 @@ userSchema.methods.toJSON = function() {
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
-

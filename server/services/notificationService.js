@@ -1,39 +1,31 @@
-const twilio = require('twilio');
 const https = require('https');
+const http = require('http');
 
-// Lazy initialization - get credentials when needed
-function getTwilioClient() {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  
-  if (!accountSid || !authToken) {
-    return null;
-  }
-  
-  try {
-    // Create HTTPS agent that accepts self-signed certificates (for development)
-    // In production, you should use proper certificate validation
-    const httpsAgent = new https.Agent({
-      rejectUnauthorized: process.env.NODE_ENV === 'production' ? true : false
-    });
+// ========================================
+// GUPSHUP CONFIGURATION
+// ========================================
+
+function getGupshupConfig() {
+  return {
+    // Gupshup WhatsApp API credentials
+    apiKey: process.env.GUPSHUP_API_KEY,
+    appName: process.env.GUPSHUP_APP_NAME || 'LaundryApp',
+    sourceNumber: process.env.GUPSHUP_SOURCE_NUMBER, // Your registered WhatsApp business number
     
-    return twilio(accountSid, authToken, {
-      httpClient: twilio.HttpClient,
-      // Use custom agent for HTTPS requests
-      httpsAgent: process.env.NODE_ENV !== 'production' ? httpsAgent : undefined
-    });
-  } catch (error) {
-    console.error('❌ Failed to initialize Twilio client:', error.message);
-    return null;
-  }
+    // Gupshup SMS API credentials (if different)
+    smsUserId: process.env.GUPSHUP_SMS_USERID || process.env.GUPSHUP_API_KEY,
+    smsPassword: process.env.GUPSHUP_SMS_PASSWORD,
+    
+    // API endpoints
+    whatsappApiUrl: 'https://api.gupshup.io/wa/api/v1/msg',
+    smsApiUrl: 'https://enterprise.smsgupshup.com/GatewayAPI/rest'
+  };
 }
 
-// Get configuration
-function getConfig() {
-  return {
-    phoneNumber: process.env.TWILIO_PHONE_NUMBER,
-    whatsappNumber: process.env.TWILIO_WHATSAPP_NUMBER
-  };
+// Check if Gupshup is configured
+function isGupshupConfigured() {
+  const config = getGupshupConfig();
+  return !!(config.apiKey && config.sourceNumber);
 }
 
 // Message templates
@@ -77,96 +69,221 @@ const messageTemplates = {
   }
 };
 
-/**
- * Send SMS notification
- * @param {string} to - Phone number (format: +91XXXXXXXXXX)
- * @param {string} message - Message to send
- * @returns {Promise<Object>} - Twilio message response
- */
-async function sendSMS(to, message) {
-  const client = getTwilioClient();
-  const config = getConfig();
+// ========================================
+// HELPER FUNCTION - HTTP REQUEST
+// ========================================
+
+function makeHttpRequest(url, options, postData) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const protocol = urlObj.protocol === 'https:' ? https : http;
+    
+    const req = protocol.request(url, options, (res) => {
+      let data = '';
+      
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      res.on('end', () => {
+        try {
+          const jsonData = JSON.parse(data);
+          resolve({ statusCode: res.statusCode, data: jsonData });
+        } catch (e) {
+          resolve({ statusCode: res.statusCode, data: data });
+        }
+      });
+    });
+    
+    req.on('error', (error) => {
+      reject(error);
+    });
+    
+    if (postData) {
+      req.write(postData);
+    }
+    
+    req.end();
+  });
+}
+
+// ========================================
+// FORMAT PHONE NUMBER
+// ========================================
+
+function formatPhoneNumber(phone) {
+  // Remove all non-digit characters
+  let cleaned = phone.replace(/\D/g, '');
   
-  if (!client) {
-    console.warn('⚠️  Twilio client not initialized. SMS not sent.');
-    console.warn('   Check TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in .env');
-    return { success: false, error: 'Twilio not configured' };
+  // If starts with 0, remove it
+  if (cleaned.startsWith('0')) {
+    cleaned = cleaned.substring(1);
+  }
+  
+  // If doesn't have country code (10 digits for India), add 91
+  if (cleaned.length === 10) {
+    cleaned = '91' + cleaned;
+  }
+  
+  // If starts with +, it's already removed by regex above
+  // Return without + for Gupshup
+  return cleaned;
+}
+
+// ========================================
+// SEND WHATSAPP VIA GUPSHUP
+// ========================================
+
+/**
+ * Send WhatsApp notification via Gupshup
+ * @param {string} to - Phone number (format: +91XXXXXXXXXX or 91XXXXXXXXXX)
+ * @param {string} message - Message to send
+ * @returns {Promise<Object>} - Gupshup API response
+ */
+async function sendWhatsApp(to, message) {
+  const config = getGupshupConfig();
+  
+  if (!config.apiKey) {
+    console.warn('⚠️  Gupshup API key not configured. WhatsApp not sent.');
+    console.warn('   Set GUPSHUP_API_KEY in .env file');
+    return { success: false, error: 'Gupshup API key not configured' };
   }
 
-  if (!config.phoneNumber) {
-    console.warn('⚠️  TWILIO_PHONE_NUMBER not configured. SMS not sent.');
-    return { success: false, error: 'Twilio phone number not configured' };
+  if (!config.sourceNumber) {
+    console.warn('⚠️  Gupshup source number not configured. WhatsApp not sent.');
+    console.warn('   Set GUPSHUP_SOURCE_NUMBER in .env file');
+    return { success: false, error: 'Gupshup source number not configured' };
   }
 
   try {
-    // Format phone number (ensure it starts with +)
-    const formattedTo = to.startsWith('+') ? to : `+${to.replace(/\s/g, '')}`;
+    const formattedTo = formatPhoneNumber(to);
+    const formattedSource = formatPhoneNumber(config.sourceNumber);
     
-    const result = await client.messages.create({
-      body: message,
-      from: config.phoneNumber,
-      to: formattedTo
+    // Gupshup WhatsApp API - using URL encoded form data
+    const postData = new URLSearchParams({
+      channel: 'whatsapp',
+      source: formattedSource,
+      destination: formattedTo,
+      message: JSON.stringify({
+        type: 'text',
+        text: message
+      }),
+      'src.name': config.appName
+    }).toString();
+
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'apikey': config.apiKey,
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
+    console.log(`📱 Sending WhatsApp to ${formattedTo} via Gupshup...`);
+    
+    const response = await makeHttpRequest(config.whatsappApiUrl, options, postData);
+    
+    if (response.statusCode === 200 || response.statusCode === 202) {
+      const messageId = response.data?.messageId || response.data?.id || 'sent';
+      console.log(`✅ WhatsApp sent to ${formattedTo}: ${messageId}`);
+      return {
+        success: true,
+        messageId: messageId,
+        status: response.data?.status || 'submitted',
+        provider: 'gupshup'
+      };
+    } else {
+      console.error(`❌ Gupshup WhatsApp error:`, response.data);
+      return {
+        success: false,
+        error: response.data?.message || response.data?.error || 'Failed to send WhatsApp',
+        provider: 'gupshup'
+      };
+    }
+  } catch (error) {
+    console.error(`❌ Error sending WhatsApp to ${to}:`, error.message);
+    return {
+      success: false,
+      error: error.message,
+      provider: 'gupshup'
+    };
+  }
+}
+
+// ========================================
+// SEND SMS VIA GUPSHUP
+// ========================================
+
+/**
+ * Send SMS notification via Gupshup
+ * @param {string} to - Phone number (format: +91XXXXXXXXXX or 91XXXXXXXXXX)
+ * @param {string} message - Message to send
+ * @returns {Promise<Object>} - Gupshup API response
+ */
+async function sendSMS(to, message) {
+  const config = getGupshupConfig();
+  
+  if (!config.smsUserId || !config.smsPassword) {
+    console.warn('⚠️  Gupshup SMS credentials not configured.');
+    console.warn('   Set GUPSHUP_SMS_USERID and GUPSHUP_SMS_PASSWORD in .env file');
+    // Try WhatsApp as fallback
+    console.log('📱 Falling back to WhatsApp...');
+    return sendWhatsApp(to, message);
+  }
+
+  try {
+    const formattedTo = formatPhoneNumber(to);
+    
+    // Gupshup SMS API
+    const params = new URLSearchParams({
+      method: 'SendMessage',
+      send_to: formattedTo,
+      msg: message,
+      msg_type: 'TEXT',
+      userid: config.smsUserId,
+      auth_scheme: 'plain',
+      password: config.smsPassword,
+      v: '1.1',
+      format: 'json'
     });
 
-    console.log(`✅ SMS sent to ${formattedTo}: ${result.sid}`);
-    return {
-      success: true,
-      messageSid: result.sid,
-      status: result.status
-    };
+    const smsUrl = `${config.smsApiUrl}?${params.toString()}`;
+    
+    console.log(`📨 Sending SMS to ${formattedTo} via Gupshup...`);
+    
+    const response = await makeHttpRequest(smsUrl, { method: 'GET' });
+    
+    if (response.statusCode === 200 && response.data?.response?.status === 'success') {
+      const messageId = response.data?.response?.id || 'sent';
+      console.log(`✅ SMS sent to ${formattedTo}: ${messageId}`);
+      return {
+        success: true,
+        messageId: messageId,
+        status: 'submitted',
+        provider: 'gupshup'
+      };
+    } else {
+      console.error(`❌ Gupshup SMS error:`, response.data);
+      return {
+        success: false,
+        error: response.data?.response?.reason || 'Failed to send SMS',
+        provider: 'gupshup'
+      };
+    }
   } catch (error) {
     console.error(`❌ Error sending SMS to ${to}:`, error.message);
     return {
       success: false,
-      error: error.message
+      error: error.message,
+      provider: 'gupshup'
     };
   }
 }
 
-/**
- * Send WhatsApp notification
- * @param {string} to - Phone number (format: +91XXXXXXXXXX)
- * @param {string} message - Message to send
- * @returns {Promise<Object>} - Twilio message response
- */
-async function sendWhatsApp(to, message) {
-  const client = getTwilioClient();
-  const config = getConfig();
-  
-  if (!client) {
-    console.warn('⚠️  Twilio client not initialized. WhatsApp not sent.');
-    console.warn('   Check TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in .env');
-    return { success: false, error: 'Twilio not configured' };
-  }
-
-  if (!config.whatsappNumber) {
-    console.warn('⚠️  WhatsApp number not configured. Falling back to SMS.');
-    return sendSMS(to, message);
-  }
-
-  try {
-    // Format phone number for WhatsApp (ensure it starts with +)
-    const formattedTo = to.startsWith('+') ? `whatsapp:${to}` : `whatsapp:+${to.replace(/\s/g, '')}`;
-    
-    const result = await client.messages.create({
-      body: message,
-      from: config.whatsappNumber,
-      to: formattedTo
-    });
-
-    console.log(`✅ WhatsApp sent to ${formattedTo}: ${result.sid}`);
-    return {
-      success: true,
-      messageSid: result.sid,
-      status: result.status
-    };
-  } catch (error) {
-    console.error(`❌ Error sending WhatsApp to ${to}:`, error.message);
-    // Fallback to SMS if WhatsApp fails
-    console.log('📱 Falling back to SMS...');
-    return sendSMS(to, message);
-  }
-}
+// ========================================
+// SEND NOTIFICATION (SMS/WHATSAPP/BOTH)
+// ========================================
 
 /**
  * Send notification based on type
@@ -192,6 +309,10 @@ async function sendNotification(type, to, message) {
   return results;
 }
 
+// ========================================
+// SEND ORDER NOTIFICATION
+// ========================================
+
 /**
  * Send order notification based on event
  * @param {Object} order - Order object
@@ -200,9 +321,15 @@ async function sendNotification(type, to, message) {
  * @param {string} previousStatus - Previous status (for statusUpdate)
  * @returns {Promise<Object>} - Result object
  */
-async function sendOrderNotification(order, event, notificationType = 'both', previousStatus = null) {
+async function sendOrderNotification(order, event, notificationType = 'whatsapp', previousStatus = null) {
   if (!order.phoneNumber) {
     return { success: false, error: 'Order has no phone number' };
+  }
+
+  // Check if Gupshup is configured
+  if (!isGupshupConfigured()) {
+    console.warn('⚠️  Gupshup not configured. Please set GUPSHUP_API_KEY and GUPSHUP_SOURCE_NUMBER in .env');
+    return { success: false, error: 'Gupshup not configured' };
   }
 
   let message;
@@ -229,13 +356,17 @@ async function sendOrderNotification(order, event, notificationType = 'both', pr
   return await sendNotification(notificationType, order.phoneNumber, message);
 }
 
+// ========================================
+// SEND BULK NOTIFICATIONS
+// ========================================
+
 /**
  * Send bulk notifications for ready orders
  * @param {Array} orders - Array of order objects
  * @param {string} notificationType - sms, whatsapp, or both
  * @returns {Promise<Object>} - Results object with success/failure counts
  */
-async function sendBulkNotifications(orders, notificationType = 'both') {
+async function sendBulkNotifications(orders, notificationType = 'whatsapp') {
   const results = {
     total: orders.length,
     success: 0,
@@ -261,7 +392,7 @@ async function sendBulkNotifications(orders, notificationType = 'both') {
           ticketNumber: order.ticketNumber,
           phoneNumber: order.phoneNumber,
           status: 'failed',
-          error: result.sms?.error || result.whatsapp?.error
+          error: result.sms?.error || result.whatsapp?.error || result.error
         });
       }
     } catch (error) {
@@ -274,10 +405,17 @@ async function sendBulkNotifications(orders, notificationType = 'both') {
         error: error.message
       });
     }
+    
+    // Add small delay between messages to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   return results;
 }
+
+// ========================================
+// EXPORTS
+// ========================================
 
 module.exports = {
   sendSMS,
@@ -285,6 +423,6 @@ module.exports = {
   sendNotification,
   sendOrderNotification,
   sendBulkNotifications,
-  messageTemplates
+  messageTemplates,
+  isGupshupConfigured
 };
-

@@ -79,7 +79,8 @@ const orderSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
-      'Received',
+      'Received',           // Order received at store
+      'Ready for Pickup',   // Ready to collect clothes FROM customer
       'Sorting',
       'Spotting',
       'Washing',
@@ -88,9 +89,9 @@ const orderSchema = new mongoose.Schema({
       'Ironing',
       'Quality Check',
       'Packing',
-      'Ready for Pickup',
-      'Out for Delivery',
-      'Delivered',
+      'Ready for Delivery', // Washed clothes in rack, ready to deliver TO customer
+      'Out for Delivery',   // Delivery boy on the way
+      'Delivered',          // Delivered to customer
       'Return',
       'Refund',
       'Cancelled'

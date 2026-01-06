@@ -185,6 +185,64 @@ const api = {
       type
     });
     return response.data;
+  },
+
+  // ============================================
+  // User Management APIs
+  // ============================================
+
+  // Get all users
+  getUsers: async (params = {}) => {
+    const response = await axios.get(`${API_BASE_URL}/users`, { params });
+    return response.data;
+  },
+
+  // Get user by ID
+  getUserById: async (id) => {
+    const response = await axios.get(`${API_BASE_URL}/users/${id}`);
+    return response.data;
+  },
+
+  // Create new user
+  createUser: async (userData) => {
+    const response = await axios.post(`${API_BASE_URL}/users`, userData);
+    return response.data;
+  },
+
+  // Update user
+  updateUser: async (id, userData) => {
+    const response = await axios.put(`${API_BASE_URL}/users/${id}`, userData);
+    return response.data;
+  },
+
+  // Delete user
+  deleteUser: async (id) => {
+    const response = await axios.delete(`${API_BASE_URL}/users/${id}`);
+    return response.data;
+  },
+
+  // Reset user password
+  resetUserPassword: async (id, newPassword) => {
+    const response = await axios.post(`${API_BASE_URL}/users/${id}/reset-password`, { newPassword });
+    return response.data;
+  },
+
+  // Toggle user status
+  toggleUserStatus: async (id) => {
+    const response = await axios.post(`${API_BASE_URL}/users/${id}/toggle-status`);
+    return response.data;
+  },
+
+  // Get available roles
+  getRoles: async () => {
+    const response = await axios.get(`${API_BASE_URL}/users/roles`);
+    return response.data;
+  },
+
+  // Get user stats
+  getUserStats: async () => {
+    const response = await axios.get(`${API_BASE_URL}/users/stats/summary`);
+    return response.data;
   }
 };
 
