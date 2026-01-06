@@ -19,7 +19,9 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     phoneNumber: '',
     location: '',
     servedBy: '',
-    notes: ''
+    notes: '',
+    paymentMethod: 'Cash',
+    paymentStatus: 'Pending'
   });
 
   const [customerSearchResults, setCustomerSearchResults] = useState([]);
@@ -32,6 +34,8 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const customerSearchRef = useRef(null);
+  const [sendWhatsAppReceipt, setSendWhatsAppReceipt] = useState(true);
+  const [sendSMSReceipt, setSendSMSReceipt] = useState(false);
 
   // Handle product click
   const handleProductClick = (product) => {
@@ -236,6 +240,16 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
       return;
     }
 
+    // Determine notification type based on selections
+    let notificationType = 'none';
+    if (sendWhatsAppReceipt && sendSMSReceipt) {
+      notificationType = 'both';
+    } else if (sendWhatsAppReceipt) {
+      notificationType = 'whatsapp';
+    } else if (sendSMSReceipt) {
+      notificationType = 'sms';
+    }
+
     const orderData = {
       ...customerInfo,
       orderDate: new Date().toISOString(),
@@ -248,9 +262,10 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
         selectedOptions: item.selectedOptions
       })),
       totalAmount: calculateTotal(),
-      paymentMethod: 'Cash',
-      paymentStatus: 'Pending',
-      status: 'Received'
+      paymentMethod: customerInfo.paymentMethod,
+      paymentStatus: customerInfo.paymentStatus,
+      status: 'Received',
+      sendNotification: notificationType
     };
 
     onSubmit(orderData);
@@ -593,6 +608,71 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
                   placeholder="Additional notes or special instructions..."
                   rows="3"
                 />
+              </div>
+
+              {/* Payment Section */}
+              <div className="form-divider payment-divider">
+                <span>💰 Payment Information</span>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="paymentMethod">Payment Method *</label>
+                  <select
+                    id="paymentMethod"
+                    name="paymentMethod"
+                    value={customerInfo.paymentMethod}
+                    onChange={handleCustomerInfoChange}
+                    className="payment-select"
+                    required
+                  >
+                    <option value="Cash">💵 Cash</option>
+                    <option value="Card">💳 Card</option>
+                    <option value="UPI">📱 UPI</option>
+                    <option value="Online">🌐 Online</option>
+                    <option value="Wallet">👛 Wallet</option>
+                    <option value="Credit">📝 Credit (Pay Later)</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="paymentStatus">Payment Status *</label>
+                  <select
+                    id="paymentStatus"
+                    name="paymentStatus"
+                    value={customerInfo.paymentStatus}
+                    onChange={handleCustomerInfoChange}
+                    className="payment-select"
+                    required
+                  >
+                    <option value="Pending">⏳ Pending</option>
+                    <option value="Paid">✅ Paid</option>
+                    <option value="Partial">🔄 Partial</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Notification Options */}
+              <div className="notification-options">
+                <span className="notification-label">📤 Send Receipt:</span>
+                <label className="checkbox-option whatsapp-option">
+                  <input
+                    type="checkbox"
+                    checked={sendWhatsAppReceipt}
+                    onChange={(e) => setSendWhatsAppReceipt(e.target.checked)}
+                  />
+                  <span className="checkbox-icon">📱</span>
+                  <span>WhatsApp</span>
+                </label>
+                <label className="checkbox-option sms-option">
+                  <input
+                    type="checkbox"
+                    checked={sendSMSReceipt}
+                    onChange={(e) => setSendSMSReceipt(e.target.checked)}
+                  />
+                  <span className="checkbox-icon">💬</span>
+                  <span>SMS</span>
+                </label>
               </div>
 
               <div className="modal-actions">

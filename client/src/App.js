@@ -8,6 +8,7 @@ import CustomerTracker from './components/CustomerTracker';
 import CustomerForm from './components/CustomerForm';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
+import ReceiptModal from './components/ReceiptModal';
 import { useAuth } from './context/AuthContext';
 import { usePermissions } from './context/PermissionsContext';
 import { PERMISSIONS } from './config/permissions';
@@ -22,6 +23,8 @@ function App() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   // Fetch order stats
   const fetchOrderStats = useCallback(async () => {
@@ -67,14 +70,37 @@ function App() {
 
   const handleCreateOrder = async (orderData) => {
     try {
-      await api.createOrder(orderData);
+      // Extract notification preference before creating order
+      const notificationType = orderData.sendNotification;
+      delete orderData.sendNotification; // Remove from order data
+      
+      const response = await api.createOrder(orderData);
       setShowOrderForm(false);
       fetchOrderStats(); // Refresh stats
-      alert('Order created successfully!');
+      
+      // Show receipt modal with the created order
+      setCreatedOrder(response.data);
+      setShowReceiptModal(true);
+      
+      // Send WhatsApp/SMS notification if enabled
+      if (notificationType && notificationType !== 'none') {
+        try {
+          await api.sendOrderNotification(response.data._id, 'confirmation', notificationType);
+          console.log(`✅ ${notificationType} notification sent successfully`);
+        } catch (notifError) {
+          console.error('Error sending notification:', notifError);
+          // Don't block the flow if notification fails
+        }
+      }
     } catch (error) {
       console.error('Error creating order:', error);
       alert('Failed to create order: ' + (error.response?.data?.error || error.message));
     }
+  };
+
+  const handleCloseReceiptModal = () => {
+    setShowReceiptModal(false);
+    setCreatedOrder(null);
   };
 
 
@@ -163,6 +189,14 @@ function App() {
                 alert('Failed to delete order');
               }
             }}
+          />
+        )}
+
+        {/* Receipt Modal - shows after order creation */}
+        {showReceiptModal && createdOrder && (
+          <ReceiptModal
+            order={createdOrder}
+            onClose={handleCloseReceiptModal}
           />
         )}
       </main>

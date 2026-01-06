@@ -63,6 +63,36 @@ const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSele
     return icons[status] || '';
   }, []);
 
+  const getPaymentStatusClass = useCallback((status) => {
+    const classes = {
+      'Paid': 'payment-paid',
+      'Pending': 'payment-pending',
+      'Partial': 'payment-partial'
+    };
+    return classes[status] || 'payment-pending';
+  }, []);
+
+  const getPaymentStatusIcon = useCallback((status) => {
+    const icons = {
+      'Paid': '✅',
+      'Pending': '⏳',
+      'Partial': '🔄'
+    };
+    return icons[status] || '⏳';
+  }, []);
+
+  const getPaymentMethodIcon = useCallback((method) => {
+    const icons = {
+      'Cash': '💵',
+      'Card': '💳',
+      'UPI': '📱',
+      'Online': '🌐',
+      'Wallet': '👛',
+      'Credit': '📝'
+    };
+    return icons[method] || '💰';
+  }, []);
+
   // Memoize the loading state
   const loadingContent = useMemo(() => {
     if (!loading) return null;
@@ -110,6 +140,7 @@ const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSele
               <th>Phone</th>
               <th>Items</th>
               <th>Amount</th>
+              <th>Payment</th>
               <th>Order Date</th>
               <th>Expected Delivery</th>
               <th>Status</th>
@@ -133,6 +164,16 @@ const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSele
                 <td>{order.phoneNumber}</td>
                 <td>{order.items.length} item(s)</td>
                 <td className="amount">₹{order.totalAmount.toLocaleString('en-IN')}</td>
+                <td className="payment-cell">
+                  <div className="payment-info">
+                    <span className={`payment-badge ${getPaymentStatusClass(order.paymentStatus)}`}>
+                      {getPaymentStatusIcon(order.paymentStatus)} {order.paymentStatus || 'Pending'}
+                    </span>
+                    <span className="payment-method">
+                      {getPaymentMethodIcon(order.paymentMethod)} {order.paymentMethod || 'Cash'}
+                    </span>
+                  </div>
+                </td>
                 <td>{formatDate(order.orderDate)}</td>
                 <td>{formatDate(order.expectedDelivery)}</td>
                 <td>

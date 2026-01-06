@@ -161,6 +161,52 @@
   color: #374151;
 }
 
+/* Payment Status Styles */
+.payment-cell {
+  min-width: 120px;
+}
+
+.payment-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.payment-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+}
+
+.payment-paid {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.payment-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.payment-partial {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.payment-method {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .action-buttons {
   display: flex;
   gap: 0.5rem;
