@@ -112,54 +112,9 @@ function App() {
     
     return (
       <header className="app-header">
-        <div className="header-content">
-          <div className="header-left">
-            <h1>🧺 Laundry Order Monitoring</h1>
-            <nav className="main-nav">
-              {/* Hide Orders for delivery role - they only see Delivery section */}
-              {user?.role !== 'delivery' && (
-                <Link 
-                  to="/" 
-                  className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
-                >
-                  📦 Orders
-                </Link>
-              )}
-              {/* Hide Customers for delivery role */}
-              {can(PERMISSIONS.CUSTOMER_VIEW) && user?.role !== 'delivery' && (
-                <Link 
-                  to="/customers" 
-                  className={`nav-link ${location.pathname === '/customers' ? 'active' : ''}`}
-                >
-                  👥 Customers
-                </Link>
-              )}
-              {can(PERMISSIONS.USER_VIEW) && (
-                <Link 
-                  to="/users" 
-                  className={`nav-link ${location.pathname === '/users' ? 'active' : ''}`}
-                >
-                  🔐 Users
-                </Link>
-              )}
-              {can(PERMISSIONS.DELIVERY_VIEW) && (
-                <Link 
-                  to="/delivery" 
-                  className={`nav-link ${location.pathname === '/delivery' ? 'active' : ''}`}
-                >
-                  🚴 Delivery
-                </Link>
-              )}
-              {can(PERMISSIONS.REPORTS_VIEW) && user?.role !== 'delivery' && (
-                <Link 
-                  to="/reports" 
-                  className={`nav-link ${location.pathname === '/reports' ? 'active' : ''}`}
-                >
-                  📊 Reports
-                </Link>
-              )}
-            </nav>
-          </div>
+        {/* Top Row: Title + User Info + Actions */}
+        <div className="header-top">
+          <h1>🧺 Laundry Order Monitoring</h1>
           <div className="header-actions">
             {user && (
               <div className="user-info">
@@ -177,6 +132,52 @@ function App() {
             </button>
           </div>
         </div>
+        
+        {/* Bottom Row: Navigation */}
+        <nav className="main-nav">
+          {/* Hide Orders for delivery role - they only see Delivery section */}
+          {user?.role !== 'delivery' && (
+            <Link 
+              to="/" 
+              className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
+            >
+              📦 Orders
+            </Link>
+          )}
+          {/* Hide Customers for delivery role */}
+          {can(PERMISSIONS.CUSTOMER_VIEW) && user?.role !== 'delivery' && (
+            <Link 
+              to="/customers" 
+              className={`nav-link ${location.pathname === '/customers' ? 'active' : ''}`}
+            >
+              👥 Customers
+            </Link>
+          )}
+          {can(PERMISSIONS.USER_VIEW) && (
+            <Link 
+              to="/users" 
+              className={`nav-link ${location.pathname === '/users' ? 'active' : ''}`}
+            >
+              🔐 Users
+            </Link>
+          )}
+          {can(PERMISSIONS.DELIVERY_VIEW) && (
+            <Link 
+              to="/delivery" 
+              className={`nav-link ${location.pathname === '/delivery' ? 'active' : ''}`}
+            >
+              🚴 Delivery
+            </Link>
+          )}
+          {can(PERMISSIONS.REPORTS_VIEW) && user?.role !== 'delivery' && (
+            <Link 
+              to="/reports" 
+              className={`nav-link ${location.pathname === '/reports' ? 'active' : ''}`}
+            >
+              📊 Reports
+            </Link>
+          )}
+        </nav>
       </header>
     );
   };
