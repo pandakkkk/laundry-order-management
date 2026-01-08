@@ -115,13 +115,17 @@ function App() {
           <div className="header-left">
             <h1>🧺 Laundry Order Monitoring</h1>
             <nav className="main-nav">
-              <Link 
-                to="/" 
-                className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
-              >
-                📦 Orders
-              </Link>
-              {can(PERMISSIONS.CUSTOMER_VIEW) && (
+              {/* Hide Orders for delivery role - they only see Delivery section */}
+              {user?.role !== 'delivery' && (
+                <Link 
+                  to="/" 
+                  className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
+                >
+                  📦 Orders
+                </Link>
+              )}
+              {/* Hide Customers for delivery role */}
+              {can(PERMISSIONS.CUSTOMER_VIEW) && user?.role !== 'delivery' && (
                 <Link 
                   to="/customers" 
                   className={`nav-link ${location.pathname === '/customers' ? 'active' : ''}`}
@@ -312,12 +316,14 @@ function App() {
         } />
         <Route path="/" element={
           <ProtectedRoute>
-            <DashboardPage />
+            {/* Redirect delivery role to delivery dashboard */}
+            {user?.role === 'delivery' ? <Navigate to="/delivery" replace /> : <DashboardPage />}
           </ProtectedRoute>
         } />
         <Route path="/customers" element={
           <ProtectedRoute>
-            <CustomerPage />
+            {/* Block delivery role from customers page */}
+            {user?.role === 'delivery' ? <Navigate to="/delivery" replace /> : <CustomerPage />}
           </ProtectedRoute>
         } />
         <Route path="/users" element={
