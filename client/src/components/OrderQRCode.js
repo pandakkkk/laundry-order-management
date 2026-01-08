@@ -67,3 +67,4 @@ const OrderQRCode = ({ order, showBarcode = true, showQR = true, size = 'medium'
 
 export default OrderQRCode;
 
+

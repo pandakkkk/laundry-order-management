@@ -54,53 +54,6 @@ const QRScanner = ({ onScan, onClose }) => {
     };
   }, []);
 
-  // Start scanning
-  const startScanning = useCallback(async () => {
-    if (!selectedCamera) {
-      setError('No camera selected');
-      return;
-    }
-
-    try {
-      setError(null);
-      html5QrCodeRef.current = new Html5Qrcode('qr-reader');
-      
-      await html5QrCodeRef.current.start(
-        selectedCamera,
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1
-        },
-        (decodedText) => {
-          // Successfully scanned
-          handleScanResult(decodedText);
-        },
-        (errorMessage) => {
-          // Scan error (continuous, so we don't show these)
-        }
-      );
-      
-      setIsScanning(true);
-    } catch (err) {
-      console.error('Scanner start error:', err);
-      setError('Failed to start camera. Please try again.');
-    }
-  }, [selectedCamera]);
-
-  // Stop scanning
-  const stopScanning = useCallback(async () => {
-    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-      try {
-        await html5QrCodeRef.current.stop();
-        html5QrCodeRef.current.clear();
-      } catch (err) {
-        console.error('Stop error:', err);
-      }
-    }
-    setIsScanning(false);
-  }, []);
-
   // Handle scan result
   const handleScanResult = useCallback((result) => {
     // Stop scanning first
@@ -135,6 +88,53 @@ const QRScanner = ({ onScan, onClose }) => {
       });
     }
   }, [onScan]);
+
+  // Start scanning
+  const startScanning = useCallback(async () => {
+    if (!selectedCamera) {
+      setError('No camera selected');
+      return;
+    }
+
+    try {
+      setError(null);
+      html5QrCodeRef.current = new Html5Qrcode('qr-reader');
+      
+      await html5QrCodeRef.current.start(
+        selectedCamera,
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1
+        },
+        (decodedText) => {
+          // Successfully scanned
+          handleScanResult(decodedText);
+        },
+        (errorMessage) => {
+          // Scan error (continuous, so we don't show these)
+        }
+      );
+      
+      setIsScanning(true);
+    } catch (err) {
+      console.error('Scanner start error:', err);
+      setError('Failed to start camera. Please try again.');
+    }
+  }, [selectedCamera, handleScanResult]);
+
+  // Stop scanning
+  const stopScanning = useCallback(async () => {
+    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+      try {
+        await html5QrCodeRef.current.stop();
+        html5QrCodeRef.current.clear();
+      } catch (err) {
+        console.error('Stop error:', err);
+      }
+    }
+    setIsScanning(false);
+  }, []);
 
   // Handle manual input
   const handleManualSubmit = (e) => {
