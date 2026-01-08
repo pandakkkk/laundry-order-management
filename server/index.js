@@ -10,6 +10,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 const { protect } = require('./middleware/auth');
 
 const app = express();
@@ -67,6 +68,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/orders', protect, orderRoutes);
 app.use('/api/notifications', protect, notificationRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Health check (public)
 app.get('/api/health', (req, res) => {

@@ -8,6 +8,7 @@ import CustomerTracker from './components/CustomerTracker';
 import CustomerForm from './components/CustomerForm';
 import UserManagement from './components/UserManagement';
 import DeliveryDashboard from './components/DeliveryDashboard';
+import ReportsDashboard from './components/ReportsDashboard';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import ReceiptModal from './components/ReceiptModal';
@@ -147,6 +148,14 @@ function App() {
                   className={`nav-link ${location.pathname === '/delivery' ? 'active' : ''}`}
                 >
                   🚴 Delivery
+                </Link>
+              )}
+              {can(PERMISSIONS.REPORTS_VIEW) && user?.role !== 'delivery' && (
+                <Link 
+                  to="/reports" 
+                  className={`nav-link ${location.pathname === '/reports' ? 'active' : ''}`}
+                >
+                  📊 Reports
                 </Link>
               )}
             </nav>
@@ -308,6 +317,15 @@ function App() {
     </>
   );
 
+  const ReportsPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main">
+        <ReportsDashboard />
+      </main>
+    </>
+  );
+
   return (
     <div className="App">
       <Routes>
@@ -334,6 +352,11 @@ function App() {
         <Route path="/delivery" element={
           <ProtectedRoute>
             <DeliveryPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/reports" element={
+          <ProtectedRoute>
+            <ReportsPage />
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />

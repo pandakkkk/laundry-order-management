@@ -243,6 +243,69 @@ const api = {
   getUserStats: async () => {
     const response = await axios.get(`${API_BASE_URL}/users/stats/summary`);
     return response.data;
+  },
+
+  // ============================================
+  // Reports & Analytics APIs
+  // ============================================
+
+  // Get dashboard stats
+  getReportDashboard: async (period = 'today') => {
+    const response = await axios.get(`${API_BASE_URL}/reports/dashboard`, { params: { period } });
+    return response.data;
+  },
+
+  // Get revenue trends
+  getRevenueTrends: async (period = 'last30days') => {
+    const response = await axios.get(`${API_BASE_URL}/reports/revenue`, { params: { period } });
+    return response.data;
+  },
+
+  // Get orders by status
+  getOrdersByStatus: async (period = 'month') => {
+    const response = await axios.get(`${API_BASE_URL}/reports/orders-by-status`, { params: { period } });
+    return response.data;
+  },
+
+  // Get top customers
+  getTopCustomers: async (period = 'month', limit = 10) => {
+    const response = await axios.get(`${API_BASE_URL}/reports/top-customers`, { params: { period, limit } });
+    return response.data;
+  },
+
+  // Get popular services
+  getPopularServices: async (period = 'month') => {
+    const response = await axios.get(`${API_BASE_URL}/reports/popular-services`, { params: { period } });
+    return response.data;
+  },
+
+  // Get staff performance
+  getStaffPerformance: async (period = 'month') => {
+    const response = await axios.get(`${API_BASE_URL}/reports/staff-performance`, { params: { period } });
+    return response.data;
+  },
+
+  // Get peak hours
+  getPeakHours: async (period = 'month') => {
+    const response = await axios.get(`${API_BASE_URL}/reports/peak-hours`, { params: { period } });
+    return response.data;
+  },
+
+  // Export report
+  exportReport: async (type, period, format = 'csv') => {
+    const response = await axios.get(`${API_BASE_URL}/reports/export`, {
+      params: { type, period, format },
+      responseType: format === 'csv' ? 'blob' : 'json'
+    });
+    return response.data;
+  },
+
+  // Get custom date range report
+  getCustomRangeReport: async (startDate, endDate) => {
+    const response = await axios.get(`${API_BASE_URL}/reports/custom-range`, {
+      params: { startDate, endDate }
+    });
+    return response.data;
   }
 };
 
