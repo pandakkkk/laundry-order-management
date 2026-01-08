@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { usePermissions } from '../context/PermissionsContext';
 import { PERMISSIONS } from '../config/permissions';
 import api from '../services/api';
+import OrderQRCode from './OrderQRCode';
 
 const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
   const { can, hasAnyPermission } = usePermissions();
@@ -319,6 +320,47 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
               <p className="notes-text">{order.notes}</p>
             </div>
           )}
+
+          {/* QR Code & Barcode Section */}
+          <div className="detail-section qr-section">
+            <h3>📱 QR Code & Barcode</h3>
+            <div className="qr-barcode-container">
+              <OrderQRCode order={order} size="medium" />
+              <div className="qr-actions">
+                <button 
+                  className="btn btn-sm btn-outline"
+                  onClick={() => {
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      printWindow.document.write(`
+                        <html>
+                          <head>
+                            <title>Print Tag - ${order.ticketNumber}</title>
+                            <style>
+                              body { font-family: Arial; text-align: center; padding: 20px; }
+                              .tag { border: 2px solid #000; padding: 15px; display: inline-block; }
+                              img { margin-bottom: 10px; }
+                              .ticket { font-family: monospace; font-size: 14pt; font-weight: bold; }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="tag">
+                              <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(JSON.stringify({ticketNumber: order.ticketNumber, orderId: order._id}))}" />
+                              <div class="ticket">${order.ticketNumber}</div>
+                            </div>
+                            <script>window.onload = function() { window.print(); }</script>
+                          </body>
+                        </html>
+                      `);
+                      printWindow.document.close();
+                    }
+                  }}
+                >
+                  🏷️ Print Tag
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="modal-footer">

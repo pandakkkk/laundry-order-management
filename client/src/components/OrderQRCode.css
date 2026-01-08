@@ -1,0 +1,162 @@
+/* Order QR Code Component */
+.qr-code-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+/* Size Variants */
+.qr-code-container.size-small {
+  padding: 0.75rem;
+  gap: 0.5rem;
+}
+
+.qr-code-container.size-medium {
+  padding: 1rem;
+  gap: 0.75rem;
+}
+
+.qr-code-container.size-large {
+  padding: 1.5rem;
+  gap: 1rem;
+}
+
+/* QR Section */
+.qr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qr-image {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.size-small .qr-image {
+  width: 80px;
+  height: 80px;
+}
+
+.size-medium .qr-image {
+  width: 120px;
+  height: 120px;
+}
+
+.size-large .qr-image {
+  width: 150px;
+  height: 150px;
+}
+
+.qr-label {
+  font-size: 0.7rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.size-large .qr-label {
+  font-size: 0.8rem;
+}
+
+/* Barcode Section */
+.barcode-section {
+  display: flex;
+  justify-content: center;
+  background: white;
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+
+.barcode-section svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Ticket Info */
+.ticket-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #e5e7eb;
+  width: 100%;
+}
+
+.ticket-number {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: 0.05em;
+}
+
+.size-small .ticket-number {
+  font-size: 0.75rem;
+}
+
+.size-large .ticket-number {
+  font-size: 1rem;
+}
+
+.order-status {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 500;
+}
+
+/* Print Styles */
+@media print {
+  .qr-code-container {
+    border: 2px solid #000;
+    box-shadow: none;
+    page-break-inside: avoid;
+  }
+
+  .qr-image {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .barcode-section svg {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* Physical Tag Print Layout */
+.print-tag {
+  width: 70mm;
+  height: 40mm;
+  padding: 3mm;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #000;
+}
+
+.print-tag .qr-image {
+  width: 25mm;
+  height: 25mm;
+}
+
+.print-tag .barcode-section svg {
+  height: 15mm;
+}
+
+.print-tag .ticket-number {
+  font-size: 10pt;
+  margin-top: 2mm;
+}
+

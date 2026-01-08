@@ -4,6 +4,7 @@ import { detectSearchType, getPlaceholder } from '../utils/smartSearch';
 import api from '../services/api';
 import OrderTable from './OrderTable';
 import StatsCards from './StatsCards';
+import QRScanner from './QRScanner';
 
 const OrderTracker = ({
   stats,
@@ -21,6 +22,7 @@ const OrderTracker = ({
   const [hasSearched, setHasSearched] = useState(false);
   const [activeFilter, setActiveFilter] = useState(null); // Track active filter
   const [isFieldManuallySelected, setIsFieldManuallySelected] = useState(false); // Track if user manually selected field
+  const [showQRScanner, setShowQRScanner] = useState(false); // QR Scanner modal state
   const searchInputRef = useRef(null);
   const isFetchingRef = useRef(false);
 
@@ -157,6 +159,42 @@ const OrderTracker = ({
     searchInputRef.current?.focus();
   }, []);
 
+  // Handle QR Scan result
+  const handleQRScan = useCallback(async (scanResult) => {
+    setShowQRScanner(false);
+    
+    try {
+      setLoading(true);
+      setHasSearched(true);
+      
+      let order = null;
+      
+      if (scanResult.orderId) {
+        // Direct order ID lookup
+        const result = await api.getOrderById(scanResult.orderId);
+        order = result.data;
+      } else if (scanResult.ticketNumber) {
+        // Ticket number lookup
+        const result = await api.getOrderByTicketNumber(scanResult.ticketNumber);
+        order = result.data;
+      }
+      
+      if (order) {
+        // Show the order directly
+        onOrderSelect(order);
+        setSearchQuery(scanResult.ticketNumber || '');
+        setOrders([order]);
+      } else {
+        alert('Order not found. Please try again.');
+      }
+    } catch (error) {
+      console.error('QR Scan lookup error:', error);
+      alert('Failed to find order: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setLoading(false);
+    }
+  }, [onOrderSelect]);
+
   return (
     <div className="order-tracker">
       {/* Header */}
@@ -249,6 +287,15 @@ const OrderTracker = ({
               {isSearching ? '⏳' : '🔍'}
             </button>
           </div>
+
+          {/* QR Scanner Button */}
+          <button
+            className="qr-scan-button"
+            onClick={() => setShowQRScanner(true)}
+            title="Scan QR Code / Barcode"
+          >
+            📷 Scan
+          </button>
         </div>
 
         {/* Quick Filters */}
@@ -327,6 +374,14 @@ const OrderTracker = ({
           />
         )}
       </div>
+
+      {/* QR Scanner Modal */}
+      {showQRScanner && (
+        <QRScanner
+          onScan={handleQRScan}
+          onClose={() => setShowQRScanner(false)}
+        />
+      )}
     </div>
   );
 };
