@@ -11,6 +11,14 @@
     {
       "source": "/api/:path*",
       "destination": "/api/index"
+    },
+    {
+      "source": "/order/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!api|static|.*\\..*|_next).*)",
+      "destination": "/index.html"
     }
   ]
 }
