@@ -3,6 +3,7 @@ import './StatsCards.css';
 
 const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
   const cards = [
+    // Row 1: Overview
     {
       title: 'Total Orders',
       value: stats.totalOrders,
@@ -22,9 +23,17 @@ const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
       value: stats.inProcessOrders,
       icon: '🔄',
       color: 'orange',
-      filter: 'IN_PROCESS', // Special filter for in-process orders
-      tooltip: 'Sorting + Spotting + Washing + Dry Cleaning + Drying + Ironing + Quality Check + Packing',
+      filter: 'IN_PROCESS',
+      tooltip: 'All processing stages combined',
       isMultiStatus: true
+    },
+    // Row 2: Processing Stages
+    {
+      title: 'Sorting',
+      value: stats.sortingOrders || 0,
+      icon: '📦',
+      color: 'slate',
+      filter: 'Sorting'
     },
     {
       title: 'Washing',
@@ -48,11 +57,33 @@ const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
       filter: 'Ironing'
     },
     {
+      title: 'Quality Check',
+      value: stats.qualityCheckOrders || 0,
+      icon: '✔️',
+      color: 'lime',
+      filter: 'Quality Check'
+    },
+    {
+      title: 'Packing',
+      value: stats.packingOrders || 0,
+      icon: '📦',
+      color: 'amber',
+      filter: 'Packing'
+    },
+    // Row 3: Pickup & Delivery
+    {
       title: 'Ready for Pickup',
       value: stats.readyForPickupOrders,
-      icon: '✅',
+      icon: '📦',
       color: 'green',
       filter: 'Ready for Pickup'
+    },
+    {
+      title: 'Ready for Delivery',
+      value: stats.readyForDeliveryOrders || 0,
+      icon: '🎁',
+      color: 'teal',
+      filter: 'Ready for Delivery'
     },
     {
       title: 'Out for Delivery',
@@ -61,18 +92,19 @@ const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
       color: 'yellow',
       filter: 'Out for Delivery'
     },
+    // Row 4: Completed & Others
     {
       title: 'Delivered',
       value: stats.deliveredOrders,
       icon: '✨',
-      color: 'teal',
+      color: 'emerald',
       filter: 'Delivered'
     },
     {
       title: 'Return',
       value: stats.returnOrders,
       icon: '↩️',
-      color: 'amber',
+      color: 'orange',
       filter: 'Return'
     },
     {
@@ -83,11 +115,19 @@ const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
       filter: 'Refund'
     },
     {
+      title: 'Cancelled',
+      value: stats.cancelledOrders || 0,
+      icon: '❌',
+      color: 'gray',
+      filter: 'Cancelled'
+    },
+    // Row 5: Summary
+    {
       title: 'Today\'s Orders',
       value: stats.todayOrders,
       icon: '📅',
       color: 'indigo',
-      filter: 'TODAY', // Special filter for today's orders
+      filter: 'TODAY',
       isSpecial: true
     },
     {

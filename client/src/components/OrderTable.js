@@ -1,12 +1,9 @@
 import React, { memo, useCallback, useMemo } from 'react';
 import './OrderTable.css';
 import { format } from 'date-fns';
-import { usePermissions } from '../context/PermissionsContext';
-import { PERMISSIONS } from '../config/permissions';
 import Pagination from './Pagination';
 
-const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSelect, onStatusUpdate, onPageChange }) => {
-  const { can } = usePermissions();
+const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSelect, onPageChange }) => {
   
   const getStatusClass = useCallback((status) => {
     const statusClasses = {
@@ -144,7 +141,6 @@ const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSele
               <th>Order Date</th>
               <th>Expected Delivery</th>
               <th>Status</th>
-              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -180,41 +176,6 @@ const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSele
                   <span className={`status-badge ${getStatusClass(order.status)}`}>
                     {getStatusIcon(order.status)} {order.status}
                   </span>
-                </td>
-                <td>
-                  <div className="action-buttons">
-                    <button 
-                      onClick={() => onOrderSelect(order)}
-                      className="btn-icon"
-                      title="View details"
-                    >
-                      👁️
-                    </button>
-                    {can(PERMISSIONS.ORDER_STATUS_UPDATE) && order.status !== 'Delivered' && order.status !== 'Cancelled' && order.status !== 'Return' && order.status !== 'Refund' && (
-                      <select
-                        value={order.status}
-                        onChange={(e) => onStatusUpdate(order._id, e.target.value)}
-                        className="status-select"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <option value="Received">📥 Received</option>
-                        <option value="Sorting">📦 Sorting</option>
-                        <option value="Spotting">🔍 Spotting</option>
-                        <option value="Washing">🧼 Washing</option>
-                        <option value="Dry Cleaning">🧴 Dry Cleaning</option>
-                        <option value="Drying">💨 Drying</option>
-                        <option value="Ironing">👔 Ironing</option>
-                        <option value="Quality Check">✔️ Quality Check</option>
-                        <option value="Packing">📦 Packing</option>
-                        <option value="Ready for Pickup">✅ Ready for Pickup</option>
-                        <option value="Out for Delivery">🚚 Out for Delivery</option>
-                        <option value="Delivered">✨ Delivered</option>
-                        <option value="Return">↩️ Return</option>
-                        <option value="Refund">💸 Refund</option>
-                        <option value="Cancelled">❌ Cancelled</option>
-                      </select>
-                    )}
-                  </div>
                 </td>
               </tr>
             ))}

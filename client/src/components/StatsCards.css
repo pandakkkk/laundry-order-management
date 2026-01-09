@@ -118,6 +118,9 @@
 .stat-card.yellow { border-left-color: #eab308; }
 .stat-card.amber { border-left-color: #f59e0b; }
 .stat-card.red { border-left-color: #ef4444; }
+.stat-card.slate { border-left-color: #64748b; }
+.stat-card.lime { border-left-color: #84cc16; }
+.stat-card.gray { border-left-color: #6b7280; }
 
 .stat-icon {
   font-size: 2rem;

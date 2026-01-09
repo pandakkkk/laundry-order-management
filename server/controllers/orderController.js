@@ -299,6 +299,8 @@ exports.getOrderStats = async (req, res) => {
     
     // Count by each status
     const receivedOrders = await Order.countDocuments({ status: 'Received' });
+    const readyForPickupOrders = await Order.countDocuments({ status: 'Ready for Pickup' });
+    const pickupInProgressOrders = await Order.countDocuments({ status: 'Pickup In Progress' });
     const sortingOrders = await Order.countDocuments({ status: 'Sorting' });
     const spottingOrders = await Order.countDocuments({ status: 'Spotting' });
     const washingOrders = await Order.countDocuments({ status: 'Washing' });
@@ -307,7 +309,7 @@ exports.getOrderStats = async (req, res) => {
     const ironingOrders = await Order.countDocuments({ status: 'Ironing' });
     const qualityCheckOrders = await Order.countDocuments({ status: 'Quality Check' });
     const packingOrders = await Order.countDocuments({ status: 'Packing' });
-    const readyForPickupOrders = await Order.countDocuments({ status: 'Ready for Pickup' });
+    const readyForDeliveryOrders = await Order.countDocuments({ status: 'Ready for Delivery' });
     const outForDeliveryOrders = await Order.countDocuments({ status: 'Out for Delivery' });
     const deliveredOrders = await Order.countDocuments({ status: 'Delivered' });
     const returnOrders = await Order.countDocuments({ status: 'Return' });
@@ -336,6 +338,8 @@ exports.getOrderStats = async (req, res) => {
       data: {
         totalOrders,
         receivedOrders,
+        readyForPickupOrders,
+        pickupInProgressOrders,
         sortingOrders,
         spottingOrders,
         washingOrders,
@@ -344,7 +348,7 @@ exports.getOrderStats = async (req, res) => {
         ironingOrders,
         qualityCheckOrders,
         packingOrders,
-        readyForPickupOrders,
+        readyForDeliveryOrders,
         outForDeliveryOrders,
         deliveredOrders,
         returnOrders,
@@ -421,6 +425,130 @@ exports.searchOrders = async (req, res) => {
       count: orders.length,
       field: field,
       data: orders
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Assign order to delivery person
+exports.assignOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { userId, userName } = req.body;
+    
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        assignedTo: userId,
+        assignedToName: userName,
+        assignedAt: new Date()
+      },
+      { new: true }
+    );
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: `Order assigned to ${userName}`,
+      data: order
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Unassign order
+exports.unassignOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        assignedTo: null,
+        assignedToName: '',
+        assignedAt: null
+      },
+      { new: true }
+    );
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Order unassigned',
+      data: order
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Get orders assigned to current user (for delivery dashboard)
+exports.getMyAssignedOrders = async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const userId = req.user._id;
+    
+    // Convert to ObjectId for proper comparison (handles both string and ObjectId)
+    const userObjectId = new mongoose.Types.ObjectId(userId.toString());
+    
+    // Only return orders that need action (not completed ones)
+    const orders = await Order.find({
+      assignedTo: userObjectId,
+      status: { 
+        $in: ['Ready for Pickup', 'Ready for Delivery'] 
+      }
+    }).sort('-assignedAt');
+    
+    console.log(`[getMyAssignedOrders] User: ${userId}, Found: ${orders.length} orders`);
+    
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('[getMyAssignedOrders] Error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Get all delivery personnel (users with delivery role)
+exports.getDeliveryPersonnel = async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const deliveryUsers = await User.find({ 
+      role: { $in: ['delivery', 'staff'] } 
+    }).select('_id name email role');
+    
+    res.json({
+      success: true,
+      data: deliveryUsers
     });
   } catch (error) {
     res.status(500).json({

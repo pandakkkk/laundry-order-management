@@ -306,6 +306,37 @@ const api = {
       params: { startDate, endDate }
     });
     return response.data;
+  },
+
+  // ============================================
+  // Delivery Management APIs
+  // ============================================
+
+  // Get orders assigned to current delivery person
+  getMyAssignedOrders: async () => {
+    const response = await axios.get(`${API_BASE_URL}/orders/my-assigned`);
+    return response.data;
+  },
+
+  // Get all delivery personnel
+  getDeliveryPersonnel: async () => {
+    const response = await axios.get(`${API_BASE_URL}/orders/delivery-personnel`);
+    return response.data;
+  },
+
+  // Assign order to delivery person
+  assignOrder: async (orderId, userId, userName) => {
+    const response = await axios.patch(`${API_BASE_URL}/orders/${orderId}/assign`, { 
+      assignedTo: userId, 
+      assignedToName: userName 
+    });
+    return response.data;
+  },
+
+  // Unassign order from delivery person
+  unassignOrder: async (orderId) => {
+    const response = await axios.patch(`${API_BASE_URL}/orders/${orderId}/unassign`);
+    return response.data;
   }
 };
 

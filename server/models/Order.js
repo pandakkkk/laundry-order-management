@@ -112,6 +112,37 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // Delivery assignment fields
+  assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  assignedToName: {
+    type: String,
+    default: ''
+  },
+  assignedAt: {
+    type: Date,
+    default: null
+  },
+  // Delivery tracking
+  pickedUpAt: {
+    type: Date,
+    default: null
+  },
+  deliveredAt: {
+    type: Date,
+    default: null
+  },
+  deliveredTo: {
+    type: String,
+    default: ''
+  },
+  deliveryNotes: {
+    type: String,
+    default: ''
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -130,6 +161,7 @@ orderSchema.pre('save', function(next) {
 
 // Index for faster queries
 orderSchema.index({ status: 1, orderDate: -1 });
+orderSchema.index({ assignedTo: 1, status: 1 });
 orderSchema.index({ customerName: 'text', phoneNumber: 'text', ticketNumber: 'text', customerId: 'text' });
 
 const Order = mongoose.model('Order', orderSchema);

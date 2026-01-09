@@ -14,6 +14,12 @@ router.get('/stats/summary', checkPermission(PERMISSIONS.ORDER_VIEW), orderContr
 // Search orders
 router.get('/search/query', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.searchOrders);
 
+// Get orders assigned to current user (delivery dashboard)
+router.get('/my-assigned', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getMyAssignedOrders);
+
+// Get delivery personnel list
+router.get('/delivery-personnel', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getDeliveryPersonnel);
+
 // Get all orders
 router.get('/', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getAllOrders);
 
@@ -31,6 +37,12 @@ router.post('/', checkPermission(PERMISSIONS.ORDER_CREATE), orderController.crea
 
 // Update order status
 router.patch('/:id/status', checkPermission(PERMISSIONS.ORDER_STATUS_UPDATE), orderController.updateOrderStatus);
+
+// Assign order to delivery person
+router.patch('/:id/assign', checkPermission(PERMISSIONS.ORDER_UPDATE), orderController.assignOrder);
+
+// Unassign order
+router.patch('/:id/unassign', checkPermission(PERMISSIONS.ORDER_UPDATE), orderController.unassignOrder);
 
 // Update order
 router.put('/:id', checkPermission(PERMISSIONS.ORDER_UPDATE), orderController.updateOrder);

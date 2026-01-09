@@ -17,6 +17,8 @@ const DeliveryDashboard = () => {
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
   const [verifiedItems, setVerifiedItems] = useState({});
   const [showDeliveryVerification, setShowDeliveryVerification] = useState(false);
+  const [pickupLoading, setPickupLoading] = useState(false);
+  const [pickupVerifiedItems, setPickupVerifiedItems] = useState({});
   const [deliveryForm, setDeliveryForm] = useState({
     receivedBy: 'self',
     receiverName: '',
@@ -24,14 +26,8 @@ const DeliveryDashboard = () => {
     notes: ''
   });
   const [stats, setStats] = useState({
-    // Pickup stats
-    toPickup: 0,      // Ready for Pickup - new orders, go collect from customer
-    pickupInProgress: 0, // Out for pickup
-    pickedUp: 0,      // Picked up, brought to store
-    // Drop stats
-    toDrop: 0,        // Ready for Delivery - clean clothes ready to deliver
-    dropInProgress: 0, // Out for Delivery
-    delivered: 0      // Delivered successfully
+    toPickup: 0,  // Orders to collect from customers
+    toDrop: 0     // Orders to deliver to customers
   });
 
   // Handle scroll for sticky header shrink effect
@@ -43,29 +39,31 @@ const DeliveryDashboard = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Fetch delivery orders
+  // Fetch delivery orders assigned to current user
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.getOrders({
-        limit: 200
-      });
+      // Fetch only orders assigned to the current delivery person
+      console.log('Fetching assigned orders...');
+      const response = await api.getMyAssignedOrders();
+      console.log('API Response:', response);
       
       if (response.success) {
+        console.log('Orders received:', response.data?.length || 0);
         setOrders(response.data);
         
-        // Calculate stats for delivery boy view
+        // Calculate stats - only orders pending action
         const toPickup = response.data.filter(o => o.status === 'Ready for Pickup').length;
-        const pickupInProgress = response.data.filter(o => o.status === 'Pickup In Progress').length;
-        const pickedUp = response.data.filter(o => o.status === 'Processing' || o.status === 'Washing').length;
         const toDrop = response.data.filter(o => o.status === 'Ready for Delivery').length;
-        const dropInProgress = response.data.filter(o => o.status === 'Out for Delivery').length;
-        const delivered = response.data.filter(o => o.status === 'Delivered').length;
         
-        setStats({ toPickup, pickupInProgress, pickedUp, toDrop, dropInProgress, delivered });
+        console.log('Stats - toPickup:', toPickup, 'toDrop:', toDrop);
+        setStats({ toPickup, toDrop });
+      } else {
+        console.error('API returned success: false', response);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
+      console.error('Error details:', error.response?.data || error.message);
     } finally {
       setLoading(false);
     }
@@ -80,15 +78,11 @@ const DeliveryDashboard = () => {
     let filtered = [...orders];
     
     if (activeMode === 'pickup') {
-      // PICKUP MODE - Collecting clothes from customers (show pending + in progress)
-      filtered = filtered.filter(o => 
-        o.status === 'Ready for Pickup' || o.status === 'Pickup In Progress'
-      );
+      // PICKUP MODE - Orders to collect from customers
+      filtered = filtered.filter(o => o.status === 'Ready for Pickup');
     } else {
-      // DROP MODE - Delivering clean clothes to customers (show ready + out for delivery)
-      filtered = filtered.filter(o => 
-        o.status === 'Ready for Delivery' || o.status === 'Out for Delivery'
-      );
+      // DROP MODE - Orders to deliver to customers
+      filtered = filtered.filter(o => o.status === 'Ready for Delivery');
     }
     
     setFilteredOrders(filtered);
@@ -102,6 +96,7 @@ const DeliveryDashboard = () => {
   // Handle order selection
   const handleOrderSelect = (order) => {
     setSelectedOrder(order);
+    setPickupVerifiedItems({}); // Reset verification when selecting new order
     setDeliveryForm({
       receivedBy: 'self',
       receiverName: order.customerName || '',
@@ -110,42 +105,52 @@ const DeliveryDashboard = () => {
     });
   };
 
-  // Start pickup - Going to collect clothes from customer
-  const handleStartPickup = async (order) => {
-    try {
-      await api.updateOrderStatus(order._id, 'Pickup In Progress');
-      fetchOrders();
-      setSelectedOrder(null);
-      alert(`✅ Started pickup for ${order.ticketNumber}`);
-    } catch (error) {
-      alert('Failed to update status');
-    }
+  // Toggle pickup item verification
+  const togglePickupItemVerified = (index) => {
+    setPickupVerifiedItems(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
   };
 
-  // Complete pickup - Clothes collected, brought to store
-  const handleCompletePickup = async (order) => {
+  // Check if all pickup items are verified
+  const allPickupItemsVerified = () => {
+    if (!selectedOrder?.items?.length) return true;
+    return selectedOrder.items.every((_, index) => pickupVerifiedItems[index]);
+  };
+
+  // Confirm pickup - Update status to Received (called from modal after verification)
+  const confirmPickup = async () => {
+    if (!selectedOrder) return;
+    
     try {
-      await api.updateOrderStatus(order._id, 'Processing');
-      await api.updateOrder(order._id, {
+      setPickupLoading(true);
+      await api.updateOrderStatus(selectedOrder._id, 'Received');
+      await api.updateOrder(selectedOrder._id, {
         pickedUpAt: new Date()
       });
       fetchOrders();
       setSelectedOrder(null);
-      alert(`✅ Pickup completed for ${order.ticketNumber}`);
+      setPickupVerifiedItems({});
     } catch (error) {
-      alert('Failed to complete pickup');
+      alert('Failed to mark as picked');
+    } finally {
+      setPickupLoading(false);
     }
   };
 
-  // Start delivery - Going to deliver clean clothes
-  const handleStartDelivery = async (order) => {
+  // Mark as Delivered - Clothes delivered to customer, disappears from drop list
+  const handleMarkDelivered = async (order) => {
     try {
-      await api.updateOrderStatus(order._id, 'Out for Delivery');
+      await api.updateOrderStatus(order._id, 'Delivered');
+      await api.updateOrder(order._id, {
+        deliveredAt: new Date()
+      });
       fetchOrders();
       setSelectedOrder(null);
-      alert(`✅ Started delivery for ${order.ticketNumber}`);
+      alert(`✅ Delivered: ${order.ticketNumber}`);
     } catch (error) {
-      alert('Failed to update status');
+      alert('Failed to mark as delivered');
     }
   };
 
@@ -327,6 +332,13 @@ const DeliveryDashboard = () => {
     return colors[status] || '#6B7280';
   };
 
+  // Get action label based on status - simple single action
+  const getActionLabel = (status) => {
+    if (status === 'Ready for Pickup' || status === 'Pickup In Progress') return '✓ PICKED';
+    if (status === 'Ready for Delivery' || status === 'Out for Delivery') return '✓ DELIVERED';
+    return status;
+  };
+
   // Get status icon
   const getStatusIcon = (status) => {
     const icons = {
@@ -341,14 +353,6 @@ const DeliveryDashboard = () => {
     return icons[status] || '📦';
   };
 
-  // Get action label based on status
-  const getActionLabel = (status) => {
-    if (status === 'Ready for Pickup') return 'START PICKUP';
-    if (status === 'Pickup In Progress') return 'COMPLETE PICKUP';
-    if (status === 'Ready for Delivery') return 'START DELIVERY';
-    if (status === 'Out for Delivery') return 'MARK DELIVERED';
-    return status;
-  };
 
   // Get payment badge
   const getPaymentBadge = (order) => {
@@ -366,10 +370,10 @@ const DeliveryDashboard = () => {
           <h1>🚴 Delivery Boy</h1>
           <div className="header-actions">
             <button className="btn-scan" onClick={() => setShowScanner(true)}>📷</button>
-            <button className="btn-refresh" onClick={fetchOrders}>🔄</button>
+          <button className="btn-refresh" onClick={fetchOrders}>🔄</button>
           </div>
         </div>
-        
+
         {/* Main Mode Toggle - PICKUP vs DROP */}
         <div className="mode-toggle">
           <button 
@@ -378,7 +382,7 @@ const DeliveryDashboard = () => {
           >
             <span className="mode-icon">📥</span>
             <span className="mode-text">TO PICK</span>
-            <span className="mode-count">{stats.toPickup + stats.pickupInProgress}</span>
+            <span className="mode-count">{stats.toPickup}</span>
           </button>
           <button 
             className={`mode-btn drop ${activeMode === 'drop' ? 'active' : ''}`}
@@ -386,7 +390,7 @@ const DeliveryDashboard = () => {
           >
             <span className="mode-icon">📤</span>
             <span className="mode-text">TO DROP</span>
-            <span className="mode-count">{stats.toDrop + stats.dropInProgress}</span>
+            <span className="mode-count">{stats.toDrop}</span>
           </button>
         </div>
 
@@ -412,7 +416,8 @@ const DeliveryDashboard = () => {
         ) : filteredOrders.length === 0 ? (
           <div className="delivery-empty">
             <span className="empty-icon">{activeMode === 'pickup' ? '📭' : '📦'}</span>
-            <p>No {activeMode === 'pickup' ? 'pickups' : 'deliveries'} available</p>
+            <p>No {activeMode === 'pickup' ? 'pickups' : 'deliveries'} assigned to you</p>
+            <p className="empty-hint">Orders will appear here once assigned by your manager</p>
           </div>
         ) : (
           filteredOrders.map(order => (
@@ -430,7 +435,7 @@ const DeliveryDashboard = () => {
                   {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                 </span>
               </div>
-
+              
               <div className="card-main">
                 <div className="customer-row">
                   <span className="customer-name">{order.customerName}</span>
@@ -459,20 +464,7 @@ const DeliveryDashboard = () => {
                   className={`btn-main-action ${activeMode}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (activeMode === 'pickup') {
-                      if (order.status === 'Ready for Pickup') {
-                        handleStartPickup(order);
-                      } else {
-                        handleCompletePickup(order);
-                      }
-                    } else {
-                      if (order.status === 'Ready for Delivery') {
-                        handleStartDelivery(order);
-                      } else {
-                        handleOrderSelect(order);
-                        setShowDeliveryForm(true);
-                      }
-                    }
+                    handleOrderSelect(order); // Open modal for verification
                   }}
                 >
                   {getActionLabel(order.status)}
@@ -514,18 +506,49 @@ const DeliveryDashboard = () => {
                 </div>
               </div>
 
-              {/* Items List */}
+              {/* Items List with Verification (Pickup Mode) */}
               {selectedOrder.items && selectedOrder.items.length > 0 && (
                 <div className="items-section">
-                  <h4>📦 Items ({selectedOrder.items.length})</h4>
+                  <div className="items-header-row">
+                    <h4>📦 Items ({selectedOrder.items.length})</h4>
+                    {activeMode === 'pickup' && (
+                      <span className="verification-progress">
+                        {Object.values(pickupVerifiedItems).filter(Boolean).length}/{selectedOrder.items.length} verified
+                      </span>
+                    )}
+                  </div>
                   <div className="items-list">
                     {selectedOrder.items.map((item, idx) => (
-                      <div key={idx} className="item-row">
-                        <span>{item.name}</span>
-                        <span>×{item.quantity}</span>
+                      <div 
+                        key={idx} 
+                        className={`item-row ${activeMode === 'pickup' ? 'verifiable' : ''} ${pickupVerifiedItems[idx] ? 'verified' : ''}`}
+                        onClick={activeMode === 'pickup' ? () => togglePickupItemVerified(idx) : undefined}
+                      >
+                        {activeMode === 'pickup' && (
+                          <div className="item-checkbox">
+                            {pickupVerifiedItems[idx] ? (
+                              <span className="checkbox-checked">✓</span>
+                            ) : (
+                              <span className="checkbox-unchecked"></span>
+                            )}
+                          </div>
+                        )}
+                        <span className="item-name">{item.description || item.name}</span>
+                        <span className="item-qty">×{item.quantity}</span>
                       </div>
                     ))}
                   </div>
+                  
+                  {/* Verification status message */}
+                  {activeMode === 'pickup' && (
+                    <div className={`verification-message ${allPickupItemsVerified() ? 'complete' : 'pending'}`}>
+                      {allPickupItemsVerified() ? (
+                        <>✅ All items verified! Ready to confirm pickup.</>
+                      ) : (
+                        <>⏳ Tap each item to verify you've collected it</>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -540,24 +563,25 @@ const DeliveryDashboard = () => {
             </div>
 
             <div className="modal-footer">
-              {activeMode === 'pickup' && selectedOrder.status === 'Ready for Pickup' && (
-                <button className="btn-primary pickup" onClick={() => handleStartPickup(selectedOrder)}>
-                  🏃 Start Pickup
+              {activeMode === 'pickup' && (
+                <button 
+                  className={`btn-primary pickup ${!allPickupItemsVerified() ? 'disabled' : ''}`}
+                  onClick={confirmPickup}
+                  disabled={!allPickupItemsVerified() || pickupLoading}
+                >
+                  {pickupLoading ? (
+                    <>
+                      <span className="spinner-small"></span>
+                      Processing...
+                    </>
+                  ) : (
+                    <>✓ CONFIRM PICKUP</>
+                  )}
                 </button>
               )}
-              {activeMode === 'pickup' && selectedOrder.status === 'Pickup In Progress' && (
-                <button className="btn-primary pickup" onClick={() => handleCompletePickup(selectedOrder)}>
-                  ✅ Complete Pickup
-                </button>
-              )}
-              {activeMode === 'drop' && selectedOrder.status === 'Ready for Delivery' && (
-                <button className="btn-primary drop" onClick={() => handleStartDelivery(selectedOrder)}>
-                  🚚 Start Delivery
-                </button>
-              )}
-              {activeMode === 'drop' && selectedOrder.status === 'Out for Delivery' && (
-                <button className="btn-primary drop" onClick={() => setShowDeliveryForm(true)}>
-                  ✅ Mark Delivered
+              {activeMode === 'drop' && (
+                <button className="btn-primary drop" onClick={() => handleMarkDelivered(selectedOrder)}>
+                  ✓ DELIVERED
                 </button>
               )}
             </div>
