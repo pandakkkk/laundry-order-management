@@ -92,7 +92,19 @@ const QRScanner = ({ onScan, onClose }) => {
         });
       }
     } catch (e) {
-      // Not JSON, check if it's a garment tag number (GT-MMDD-XXX format)
+      // Not JSON - check if it's a URL with order ID
+      // URL format: http://domain/order/{orderId}
+      const urlOrderMatch = result.match(/\/order\/([a-f0-9]{24})/i);
+      if (urlOrderMatch) {
+        onScan({
+          type: 'url',
+          orderId: urlOrderMatch[1],
+          raw: result
+        });
+        return;
+      }
+      
+      // Check if it's a garment tag number (GT-MMDD-XXX format)
       if (result.startsWith('GT-')) {
         onScan({
           type: 'garment_tag_barcode',
@@ -100,7 +112,7 @@ const QRScanner = ({ onScan, onClose }) => {
           raw: result
         });
       } else {
-        // Might be a ticket number directly (TKT-YYYYMMDD-XXX)
+        // Might be a ticket number directly (TKT-YYYYMMDD-XXX or other formats)
         onScan({
           type: 'barcode',
           ticketNumber: result,

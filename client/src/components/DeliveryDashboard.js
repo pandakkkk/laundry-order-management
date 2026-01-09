@@ -193,15 +193,17 @@ const DeliveryDashboard = () => {
     try {
       let order = null;
       
-      if (scanData.ticketNumber) {
-        const response = await api.getOrderByTicketNumber(scanData.ticketNumber);
+      // First try orderId (from URL-based QR codes on garment tags)
+      if (scanData.orderId) {
+        const response = await api.getOrderById(scanData.orderId);
         if (response.success) {
           order = response.data;
         }
       }
       
-      if (!order && scanData.orderId) {
-        const response = await api.getOrderById(scanData.orderId);
+      // Then try ticketNumber
+      if (!order && scanData.ticketNumber) {
+        const response = await api.getOrderByTicketNumber(scanData.ticketNumber);
         if (response.success) {
           order = response.data;
         }
@@ -222,7 +224,7 @@ const DeliveryDashboard = () => {
           setShowStatusUpdate(true);
         }
       } else {
-        alert('Order not found! Please check the ticket number.');
+        alert('Order not found! Please check the QR code or ticket number.');
       }
     } catch (error) {
       console.error('Error finding order:', error);
