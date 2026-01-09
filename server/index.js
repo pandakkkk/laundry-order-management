@@ -74,7 +74,7 @@ app.use('/api/reports', reportRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
-    message: 'Laundry Order Monitoring System is running',
+    message: 'Laundry Management System is running',
     timestamp: new Date().toISOString()
   });
 });

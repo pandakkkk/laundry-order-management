@@ -81,6 +81,7 @@ const orderSchema = new mongoose.Schema({
     enum: [
       'Received',           // Order received at store
       'Ready for Pickup',   // Ready to collect clothes FROM customer
+      'Pickup In Progress', // Delivery boy going to collect from customer
       'Sorting',
       'Spotting',
       'Washing',

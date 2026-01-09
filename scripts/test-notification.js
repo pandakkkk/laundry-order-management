@@ -34,7 +34,7 @@ async function testNotification() {
   console.log(`📱 Testing SMS to ${testPhoneNumber}...`);
   const smsResult = await notificationService.sendSMS(
     testPhoneNumber,
-    '🧪 Test message from Laundry Order Monitoring System. If you receive this, SMS notifications are working!'
+    '🧪 Test message from Laundry Management System. If you receive this, SMS notifications are working!'
   );
 
   if (smsResult.success) {
@@ -48,7 +48,7 @@ async function testNotification() {
   console.log(`📱 Testing WhatsApp to ${testPhoneNumber}...`);
   const whatsappResult = await notificationService.sendWhatsApp(
     testPhoneNumber,
-    '🧪 Test message from Laundry Order Monitoring System. If you receive this, WhatsApp notifications are working!'
+    '🧪 Test message from Laundry Management System. If you receive this, WhatsApp notifications are working!'
   );
 
   if (whatsappResult.success) {

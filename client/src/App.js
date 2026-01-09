@@ -115,7 +115,7 @@ function App() {
       <header className="app-header">
         {/* Top Row: Title + User Info + Actions */}
         <div className="header-top">
-          <h1>🧺 Laundry Order Monitoring</h1>
+          <h1>🧺 Laundry Management</h1>
           <div className="header-actions">
             {user && (
               <div className="user-info">
