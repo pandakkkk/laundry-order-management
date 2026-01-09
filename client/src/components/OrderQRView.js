@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useParams } from 'react-router-dom';
+import api from '../services/api';
 import './OrderQRView.css';
 
 // All possible order statuses in workflow order
@@ -25,8 +25,6 @@ const ORDER_STATUSES = [
 
 const OrderQRView = () => {
   const { orderId } = useParams();
-  const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -34,71 +32,23 @@ const OrderQRView = () => {
   const [updateMessage, setUpdateMessage] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      // Store the intended destination so we can redirect back after login
-      sessionStorage.setItem('redirectAfterLogin', `/order/${orderId}`);
-      navigate('/login');
-    }
-  }, [isAuthenticated, authLoading, navigate, orderId]);
-
   useEffect(() => {
     const fetchOrder = async () => {
-      if (!isAuthenticated) return;
-      
       try {
         setLoading(true);
-        // Fetch from protected API (requires auth token)
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/orders/${orderId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.status === 401) {
-          sessionStorage.setItem('redirectAfterLogin', `/order/${orderId}`);
-          navigate('/login');
-          return;
-        }
-        
-        if (!response.ok) {
-          throw new Error('Order not found');
-        }
-        const data = await response.json();
-        setOrder(data.data);
+        const response = await api.getOrderById(orderId);
+        setOrder(response.data);
       } catch (err) {
-        setError(err.message);
+        setError(err.response?.data?.error || err.message || 'Order not found');
       } finally {
         setLoading(false);
       }
     };
 
-    if (orderId && isAuthenticated) {
+    if (orderId) {
       fetchOrder();
     }
-  }, [orderId, isAuthenticated, navigate]);
-
-  // Function to refetch order data
-  const refetchOrder = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/orders/${orderId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setOrder(data.data);
-      }
-    } catch (err) {
-      console.error('Error refetching order:', err);
-    }
-  };
+  }, [orderId]);
 
   // Update order status
   const handleStatusUpdate = async (newStatus) => {
@@ -108,30 +58,15 @@ const OrderQRView = () => {
     setUpdateMessage(null);
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update status');
-      }
-      
-      const data = await response.json();
-      setOrder(data.data);
+      const response = await api.updateOrderStatus(orderId, newStatus);
+      setOrder(response.data);
       setUpdateMessage({ type: 'success', text: `Status updated to "${newStatus}"` });
       setShowStatusPicker(false);
       
       // Clear message after 3 seconds
       setTimeout(() => setUpdateMessage(null), 3000);
     } catch (err) {
-      setUpdateMessage({ type: 'error', text: err.message });
+      setUpdateMessage({ type: 'error', text: err.response?.data?.error || err.message });
       setTimeout(() => setUpdateMessage(null), 5000);
     } finally {
       setUpdating(false);
@@ -196,30 +131,6 @@ const OrderQRView = () => {
     };
     return icons[status] || '📋';
   };
-
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <div className="qr-view-container">
-        <div className="qr-view-loading">
-          <div className="loading-spinner"></div>
-          <p>Checking authentication...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Don't render if not authenticated (will redirect)
-  if (!isAuthenticated) {
-    return (
-      <div className="qr-view-container">
-        <div className="qr-view-loading">
-          <div className="loading-spinner"></div>
-          <p>Redirecting to login...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (

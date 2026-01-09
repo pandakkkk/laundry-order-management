@@ -328,12 +328,19 @@ function App() {
     </>
   );
 
+  // Track Order Page - for QR code scanning
+  const TrackOrderPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main">
+        <OrderQRView />
+      </main>
+    </>
+  );
+
   return (
     <div className="App">
       <Routes>
-        {/* Public route for QR code scanning - no auth required */}
-        <Route path="/order/:orderId" element={<OrderQRView />} />
-        
         <Route path="/login" element={
           isAuthenticated ? <Navigate to="/" replace /> : <Login />
         } />
@@ -362,6 +369,11 @@ function App() {
         <Route path="/reports" element={
           <ProtectedRoute>
             <ReportsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/order/:orderId" element={
+          <ProtectedRoute>
+            <TrackOrderPage />
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
