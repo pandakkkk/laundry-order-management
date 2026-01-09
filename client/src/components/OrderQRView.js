@@ -1,33 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import './OrderQRView.css';
 
 const OrderQRView = () => {
   const { orderId } = useParams();
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      // Store the intended destination so we can redirect back after login
+      sessionStorage.setItem('redirectAfterLogin', `/order/${orderId}`);
+      navigate('/login');
+    }
+  }, [isAuthenticated, authLoading, navigate, orderId]);
+
   useEffect(() => {
     const fetchOrder = async () => {
+      if (!isAuthenticated) return;
+      
       try {
         setLoading(true);
-        // Try to get order from URL params first (for offline/direct access)
-        const urlData = searchParams.get('data');
-        if (urlData) {
-          try {
-            const decoded = JSON.parse(decodeURIComponent(urlData));
-            setOrder(decoded);
-            setLoading(false);
-            return;
-          } catch (e) {
-            console.log('Could not parse URL data, fetching from API');
+        // Fetch from protected API (requires auth token)
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/orders/${orderId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
+        });
+        
+        if (response.status === 401) {
+          sessionStorage.setItem('redirectAfterLogin', `/order/${orderId}`);
+          navigate('/login');
+          return;
         }
-
-        // Fetch from API
-        const response = await fetch(`/api/orders/${orderId}/public`);
+        
         if (!response.ok) {
           throw new Error('Order not found');
         }
@@ -40,10 +53,10 @@ const OrderQRView = () => {
       }
     };
 
-    if (orderId) {
+    if (orderId && isAuthenticated) {
       fetchOrder();
     }
-  }, [orderId, searchParams]);
+  }, [orderId, isAuthenticated, navigate]);
 
   const formatDate = (date) => {
     if (!date) return 'N/A';
@@ -91,6 +104,30 @@ const OrderQRView = () => {
     };
     return icons[status] || '📋';
   };
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="qr-view-container">
+        <div className="qr-view-loading">
+          <div className="loading-spinner"></div>
+          <p>Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return (
+      <div className="qr-view-container">
+        <div className="qr-view-loading">
+          <div className="loading-spinner"></div>
+          <p>Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

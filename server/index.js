@@ -62,10 +62,6 @@ mongoose.connection.on('reconnected', () => {
   console.log('✅ MongoDB reconnected successfully');
   });
 
-// Public route for QR code scanning (no auth required) - must be before protected routes
-const orderController = require('./controllers/orderController');
-app.get('/api/orders/:id/public', orderController.getPublicOrderById);
-
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

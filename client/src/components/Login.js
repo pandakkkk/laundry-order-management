@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
 
@@ -12,6 +13,7 @@ const Login = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const { login, register } = useAuth();
 
@@ -78,6 +80,14 @@ const Login = () => {
 
     if (!result.success) {
       setError(result.error);
+    } else {
+      // Check if there's a redirect URL stored (from QR code scan)
+      const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectUrl) {
+        sessionStorage.removeItem('redirectAfterLogin');
+        navigate(redirectUrl);
+      }
+      // Otherwise, App.js will handle the default redirect
     }
   };
 
