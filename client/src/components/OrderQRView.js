@@ -3,6 +3,26 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './OrderQRView.css';
 
+// All possible order statuses in workflow order
+const ORDER_STATUSES = [
+  'Received',
+  'Sorting',
+  'Spotting', 
+  'Washing',
+  'Dry Cleaning',
+  'Drying',
+  'Ironing',
+  'Quality Check',
+  'Packing',
+  'Ready for Pickup',
+  'Ready for Delivery',
+  'Out for Delivery',
+  'Delivered',
+  'Return',
+  'Refund',
+  'Cancelled'
+];
+
 const OrderQRView = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
@@ -10,6 +30,9 @@ const OrderQRView = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [updating, setUpdating] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState(null);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -57,6 +80,75 @@ const OrderQRView = () => {
       fetchOrder();
     }
   }, [orderId, isAuthenticated, navigate]);
+
+  // Function to refetch order data
+  const refetchOrder = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/orders/${orderId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setOrder(data.data);
+      }
+    } catch (err) {
+      console.error('Error refetching order:', err);
+    }
+  };
+
+  // Update order status
+  const handleStatusUpdate = async (newStatus) => {
+    if (updating || newStatus === order.status) return;
+    
+    setUpdating(true);
+    setUpdateMessage(null);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update status');
+      }
+      
+      const data = await response.json();
+      setOrder(data.data);
+      setUpdateMessage({ type: 'success', text: `Status updated to "${newStatus}"` });
+      setShowStatusPicker(false);
+      
+      // Clear message after 3 seconds
+      setTimeout(() => setUpdateMessage(null), 3000);
+    } catch (err) {
+      setUpdateMessage({ type: 'error', text: err.message });
+      setTimeout(() => setUpdateMessage(null), 5000);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Get next logical status in workflow
+  const getNextStatus = () => {
+    const currentIndex = ORDER_STATUSES.indexOf(order?.status);
+    if (currentIndex === -1 || currentIndex >= ORDER_STATUSES.length - 1) return null;
+    // Skip Return, Refund, Cancelled as next status options
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < ORDER_STATUSES.length - 3) {
+      return ORDER_STATUSES[nextIndex];
+    }
+    return null;
+  };
 
   const formatDate = (date) => {
     if (!date) return 'N/A';
@@ -183,6 +275,63 @@ const OrderQRView = () => {
         >
           <span className="status-icon">{getStatusIcon(order.status)}</span>
           <span className="status-text">{order.status}</span>
+        </div>
+
+        {/* Status Update Section */}
+        <div className="qr-view-section status-update-section">
+          <h3>🔄 Update Status</h3>
+          
+          {/* Update Message */}
+          {updateMessage && (
+            <div className={`update-message ${updateMessage.type}`}>
+              {updateMessage.type === 'success' ? '✅' : '❌'} {updateMessage.text}
+            </div>
+          )}
+          
+          {/* Quick Update - Next Status Button */}
+          {getNextStatus() && !showStatusPicker && (
+            <button 
+              className="next-status-btn"
+              onClick={() => handleStatusUpdate(getNextStatus())}
+              disabled={updating}
+            >
+              {updating ? (
+                <span>⏳ Updating...</span>
+              ) : (
+                <span>➡️ Move to: <strong>{getNextStatus()}</strong></span>
+              )}
+            </button>
+          )}
+          
+          {/* Show All Statuses Button */}
+          <button 
+            className="show-all-status-btn"
+            onClick={() => setShowStatusPicker(!showStatusPicker)}
+          >
+            {showStatusPicker ? '✕ Close' : '📋 Select Different Status'}
+          </button>
+          
+          {/* Status Picker */}
+          {showStatusPicker && (
+            <div className="status-picker">
+              {ORDER_STATUSES.map((status) => (
+                <button
+                  key={status}
+                  className={`status-option ${status === order.status ? 'current' : ''}`}
+                  onClick={() => handleStatusUpdate(status)}
+                  disabled={updating || status === order.status}
+                  style={{ 
+                    borderColor: getStatusColor(status),
+                    backgroundColor: status === order.status ? getStatusColor(status) : 'transparent',
+                    color: status === order.status ? 'white' : getStatusColor(status)
+                  }}
+                >
+                  {getStatusIcon(status)} {status}
+                  {status === order.status && ' ✓'}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Customer Info */}
