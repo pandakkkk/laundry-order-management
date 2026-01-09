@@ -5,6 +5,8 @@ import { usePermissions } from '../context/PermissionsContext';
 import { PERMISSIONS } from '../config/permissions';
 import api from '../services/api';
 import OrderQRCode from './OrderQRCode';
+import GarmentTagPrint from './GarmentTagPrint';
+import { generateTagNumber } from './GarmentTag';
 
 const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
   const { can, hasAnyPermission } = usePermissions();
@@ -12,6 +14,7 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
   const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [isUpdatingRack, setIsUpdatingRack] = useState(false);
   const [selectedRack, setSelectedRack] = useState(order?.rackNumber || '');
+  const [showGarmentTagModal, setShowGarmentTagModal] = useState(false);
 
   // Debug: Log order status to help troubleshoot
   useEffect(() => {
@@ -356,12 +359,41 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
                     }
                   }}
                 >
-                  🏷️ Print Tag
+                  🏷️ Print QR Tag
                 </button>
               </div>
             </div>
           </div>
+
+          {/* Garment Tag Section */}
+          <div className="detail-section garment-tag-section">
+            <h3>🏷️ Garment Tag</h3>
+            <div className="garment-tag-info">
+              <div className="tag-number-display">
+                <span className="tag-label">Tag Number:</span>
+                <span className="tag-value">{generateTagNumber(order.ticketNumber)}</span>
+              </div>
+              <p className="tag-description">
+                Print physical tags to attach to garments. Each tag has a unique QR code and barcode 
+                that can be scanned to quickly identify and update order status.
+              </p>
+              <button 
+                className="btn-print-garment-tag"
+                onClick={() => setShowGarmentTagModal(true)}
+              >
+                🏷️ Print Garment Tags
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Garment Tag Print Modal */}
+        {showGarmentTagModal && (
+          <GarmentTagPrint 
+            order={order} 
+            onClose={() => setShowGarmentTagModal(false)} 
+          />
+        )}
 
         <div className="modal-footer">
           {can(PERMISSIONS.ORDER_STATUS_UPDATE) && (

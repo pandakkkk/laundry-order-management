@@ -12,6 +12,7 @@ import ReportsDashboard from './components/ReportsDashboard';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import ReceiptModal from './components/ReceiptModal';
+import OrderQRView from './components/OrderQRView';
 import { useAuth } from './context/AuthContext';
 import { usePermissions } from './context/PermissionsContext';
 import { PERMISSIONS } from './config/permissions';
@@ -330,6 +331,9 @@ function App() {
   return (
     <div className="App">
       <Routes>
+        {/* Public route for QR code scanning - no auth required */}
+        <Route path="/order/:orderId" element={<OrderQRView />} />
+        
         <Route path="/login" element={
           isAuthenticated ? <Navigate to="/" replace /> : <Login />
         } />

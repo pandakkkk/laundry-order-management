@@ -285,6 +285,15 @@
   margin-bottom: 0.25rem;
 }
 
+.scanner-tip {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: #fef3c7;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: #92400e;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .qr-scanner-modal {

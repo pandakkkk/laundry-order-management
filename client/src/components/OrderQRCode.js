@@ -1,61 +1,37 @@
-import React, { useEffect, useRef } from 'react';
-import JsBarcode from 'jsbarcode';
+import React from 'react';
 import './OrderQRCode.css';
 
-const OrderQRCode = ({ order, showBarcode = true, showQR = true, size = 'medium' }) => {
-  const barcodeRef = useRef(null);
-
-  // Generate barcode
-  useEffect(() => {
-    if (barcodeRef.current && order?.ticketNumber && showBarcode) {
-      try {
-        JsBarcode(barcodeRef.current, order.ticketNumber, {
-          format: 'CODE128',
-          width: size === 'small' ? 1.5 : 2,
-          height: size === 'small' ? 40 : 60,
-          displayValue: true,
-          fontSize: size === 'small' ? 10 : 12,
-          margin: 5,
-          background: '#ffffff',
-          lineColor: '#1f2937'
-        });
-      } catch (err) {
-        console.error('Barcode generation error:', err);
-      }
-    }
-  }, [order?.ticketNumber, showBarcode, size]);
-
+const OrderQRCode = ({ order, size = 'medium' }) => {
   if (!order) return null;
 
-  // Generate QR code data URL
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size === 'small' ? '100x100' : '150x150'}&data=${encodeURIComponent(
-    JSON.stringify({
-      ticketNumber: order.ticketNumber,
-      orderId: order._id,
-      status: order.status
-    })
-  )}`;
+  // Get base URL for the QR code link
+  // In production, use the actual domain; in development, use localhost
+  const getBaseUrl = () => {
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
+    return 'http://localhost:3000';
+  };
+
+  // Generate URL that points to the public order view page
+  const orderViewUrl = `${getBaseUrl()}/order/${order._id}`;
+
+  // Generate QR code with the URL
+  const qrSize = size === 'small' ? '150x150' : '200x200';
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}&data=${encodeURIComponent(orderViewUrl)}`;
 
   const sizeClass = `qr-code-container size-${size}`;
 
   return (
     <div className={sizeClass}>
-      {showQR && (
-        <div className="qr-section">
-          <img 
-            src={qrCodeUrl} 
-            alt={`QR Code for ${order.ticketNumber}`}
-            className="qr-image"
-          />
-          <span className="qr-label">Scan for Order Details</span>
-        </div>
-      )}
-
-      {showBarcode && (
-        <div className="barcode-section">
-          <svg ref={barcodeRef}></svg>
-        </div>
-      )}
+      <div className="qr-section">
+        <img 
+          src={qrCodeUrl} 
+          alt={`QR Code for ${order.ticketNumber}`}
+          className="qr-image"
+        />
+        <span className="qr-label">Scan for Full Order Info</span>
+      </div>
 
       <div className="ticket-info">
         <span className="ticket-number">{order.ticketNumber}</span>

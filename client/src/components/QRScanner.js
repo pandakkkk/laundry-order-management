@@ -63,9 +63,21 @@ const QRScanner = ({ onScan, onClose }) => {
     setIsScanning(false);
     
     try {
-      // Try to parse as JSON (QR code from our receipts)
+      // Try to parse as JSON (QR code from receipts or garment tags)
       const data = JSON.parse(result);
-      if (data.ticketNumber || data.orderId) {
+      
+      // Check if it's a garment tag (has tagNumber field)
+      if (data.tagNumber) {
+        onScan({
+          type: 'garment_tag',
+          tagNumber: data.tagNumber,
+          ticketNumber: data.ticketNumber,
+          orderId: data.orderId,
+          customerId: data.customerId,
+          raw: result
+        });
+      } else if (data.ticketNumber || data.orderId) {
+        // Regular QR code from receipt
         onScan({
           type: 'qr',
           ticketNumber: data.ticketNumber,
@@ -80,12 +92,21 @@ const QRScanner = ({ onScan, onClose }) => {
         });
       }
     } catch (e) {
-      // Not JSON, might be a ticket number directly
-      onScan({
-        type: 'barcode',
-        ticketNumber: result,
-        raw: result
-      });
+      // Not JSON, check if it's a garment tag number (GT-MMDD-XXX format)
+      if (result.startsWith('GT-')) {
+        onScan({
+          type: 'garment_tag_barcode',
+          tagNumber: result,
+          raw: result
+        });
+      } else {
+        // Might be a ticket number directly (TKT-YYYYMMDD-XXX)
+        onScan({
+          type: 'barcode',
+          ticketNumber: result,
+          raw: result
+        });
+      }
     }
   }, [onScan]);
 
@@ -222,7 +243,7 @@ const QRScanner = ({ onScan, onClose }) => {
           <form className="manual-input" onSubmit={handleManualSubmit}>
             <input
               type="text"
-              placeholder="Enter Ticket Number (e.g., TKT-20250108-001)"
+              placeholder="Ticket (TKT-...) or Tag Number (GT-...)"
               value={manualInput}
               onChange={(e) => setManualInput(e.target.value)}
             />
@@ -235,10 +256,13 @@ const QRScanner = ({ onScan, onClose }) => {
           <div className="scanner-instructions">
             <h4>📌 How to use:</h4>
             <ul>
-              <li>Point camera at QR code on receipt</li>
-              <li>Hold steady until detected</li>
-              <li>Or enter ticket number manually</li>
+              <li>Scan QR code on receipt or garment tag</li>
+              <li>Scan barcode on physical tag</li>
+              <li>Or enter ticket/tag number manually</li>
             </ul>
+            <div className="scanner-tip">
+              💡 <strong>Garment Tags:</strong> GT-0109-001 format
+            </div>
           </div>
         </div>
       </div>

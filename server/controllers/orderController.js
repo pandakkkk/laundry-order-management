@@ -94,6 +94,47 @@ exports.getOrderById = async (req, res) => {
   }
 };
 
+// PUBLIC: Get order by ID for QR code scanning (no auth required)
+exports.getPublicOrderById = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found'
+      });
+    }
+    
+    // Return only safe, public-facing data
+    res.json({
+      success: true,
+      data: {
+        ticketNumber: order.ticketNumber,
+        status: order.status,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        items: order.items?.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        totalAmount: order.totalAmount,
+        orderDate: order.orderDate,
+        expectedDelivery: order.expectedDelivery,
+        completedDate: order.completedDate,
+        rackNumber: order.rackNumber,
+        _id: order._id
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
 // Get order by ticket number
 exports.getOrderByTicketNumber = async (req, res) => {
   try {

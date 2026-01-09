@@ -5,6 +5,9 @@ const receiptController = require('../controllers/receiptController');
 const { checkPermission, checkAnyPermission } = require('../middleware/auth');
 const { PERMISSIONS } = require('../config/permissions');
 
+// PUBLIC ROUTE - Get order details for QR code scanning (no auth required)
+router.get('/:id/public', orderController.getPublicOrderById);
+
 // Get orders statistics (check first to avoid conflict with /:id)
 router.get('/stats/summary', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getOrderStats);
 
