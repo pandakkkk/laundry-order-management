@@ -4,7 +4,7 @@ import axios from 'axios';
 
 // Use relative path in production (Vercel), localhost in development
 const API_BASE_URL = process.env.REACT_APP_API_URL || 
-  (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api');
+  (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5001/api');
 
 export const usePermissions = () => {
   const { user, isAuthenticated } = useAuth();

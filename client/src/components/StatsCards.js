@@ -19,6 +19,13 @@ const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
       filter: 'Received'
     },
     {
+      title: 'In Workshop',
+      value: stats.receivedInWorkshopOrders || 0,
+      icon: '🏭',
+      color: 'indigo',
+      filter: 'Received in Workshop'
+    },
+    {
       title: 'In Process',
       value: stats.inProcessOrders,
       icon: '🔄',

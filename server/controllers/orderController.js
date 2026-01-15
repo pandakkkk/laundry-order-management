@@ -299,6 +299,9 @@ exports.getOrderStats = async (req, res) => {
     
     // Count by each status
     const receivedOrders = await Order.countDocuments({ status: 'Received' });
+    const receivedInWorkshopOrders = await Order.countDocuments({ status: 'Received in Workshop' });
+    const tagPrintedOrders = await Order.countDocuments({ status: 'Tag Printed' });
+    const readyForProcessingOrders = await Order.countDocuments({ status: 'Ready for Processing' });
     const readyForPickupOrders = await Order.countDocuments({ status: 'Ready for Pickup' });
     const pickupInProgressOrders = await Order.countDocuments({ status: 'Pickup In Progress' });
     const sortingOrders = await Order.countDocuments({ status: 'Sorting' });
@@ -338,6 +341,9 @@ exports.getOrderStats = async (req, res) => {
       data: {
         totalOrders,
         receivedOrders,
+        receivedInWorkshopOrders,
+        tagPrintedOrders,
+        readyForProcessingOrders,
         readyForPickupOrders,
         pickupInProgressOrders,
         sortingOrders,
@@ -437,14 +443,14 @@ exports.searchOrders = async (req, res) => {
 // Assign order to delivery person
 exports.assignOrder = async (req, res) => {
   try {
-    const { orderId } = req.params;
-    const { userId, userName } = req.body;
+    const { id } = req.params;
+    const { assignedTo, assignedToName } = req.body;
     
     const order = await Order.findByIdAndUpdate(
-      orderId,
+      id,
       {
-        assignedTo: userId,
-        assignedToName: userName,
+        assignedTo: assignedTo,
+        assignedToName: assignedToName,
         assignedAt: new Date()
       },
       { new: true }
@@ -459,7 +465,7 @@ exports.assignOrder = async (req, res) => {
     
     res.json({
       success: true,
-      message: `Order assigned to ${userName}`,
+      message: `Order assigned to ${assignedToName}`,
       data: order
     });
   } catch (error) {
@@ -473,10 +479,10 @@ exports.assignOrder = async (req, res) => {
 // Unassign order
 exports.unassignOrder = async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const { id } = req.params;
     
     const order = await Order.findByIdAndUpdate(
-      orderId,
+      id,
       {
         assignedTo: null,
         assignedToName: '',
@@ -518,7 +524,7 @@ exports.getMyAssignedOrders = async (req, res) => {
     const orders = await Order.find({
       assignedTo: userObjectId,
       status: { 
-        $in: ['Ready for Pickup', 'Ready for Delivery'] 
+        $in: ['Ready for Pickup', 'Ready for Delivery', 'Out for Delivery'] 
       }
     }).sort('-assignedAt');
     
@@ -543,8 +549,9 @@ exports.getDeliveryPersonnel = async (req, res) => {
   try {
     const User = require('../models/User');
     const deliveryUsers = await User.find({ 
-      role: { $in: ['delivery', 'staff'] } 
-    }).select('_id name email role');
+      role: 'delivery',
+      isActive: true
+    }).select('_id name email role isActive');
     
     res.json({
       success: true,

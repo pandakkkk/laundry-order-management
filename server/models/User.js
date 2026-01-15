@@ -35,13 +35,15 @@ const userSchema = new mongoose.Schema({
       'delivery',     // Delivery personnel
       'frontdesk',    // Front desk operations
       'staff',        // General staff
-      'accountant'    // Financial operations
+      'accountant',   // Financial operations
+      'drycleaner',   // Dry cleaning operations
+      'linentracker'  // Linen tracking operations
     ],
     default: 'staff'
   },
   department: {
     type: String,
-    enum: ['Operations', 'HR', 'Finance', 'Delivery', 'Customer Service', 'Management'],
+    enum: ['Operations', 'HR', 'Finance', 'Delivery', 'Customer Service', 'Management', 'Dry Cleaning'],
     default: 'Operations'
   },
   isActive: {

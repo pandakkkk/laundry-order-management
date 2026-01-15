@@ -9,6 +9,10 @@ import CustomerForm from './components/CustomerForm';
 import UserManagement from './components/UserManagement';
 import DeliveryDashboard from './components/DeliveryDashboard';
 import OperationsDashboard from './components/OperationsDashboard';
+import DryCleanerDashboard from './components/DryCleanerDashboard';
+import LinenTrackerDashboard from './components/LinenTrackerDashboard';
+import BackOfficeDashboard from './components/BackOfficeDashboard';
+import FrontdeskDashboard from './components/FrontdeskDashboard';
 import ReportsDashboard from './components/ReportsDashboard';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -124,7 +128,7 @@ function App() {
                 <span className="user-role">{user.role}</span>
               </div>
             )}
-            {location.pathname === '/' && can(PERMISSIONS.ORDER_CREATE) && (
+            {can(PERMISSIONS.ORDER_CREATE) && user?.role !== 'manager' && user?.role !== 'backoffice' && (user?.role === 'frontdesk' || location.pathname === '/') && (
               <button className="btn btn-primary" onClick={() => setShowOrderForm(!showOrderForm)}>
                 {showOrderForm ? 'Close Form' : '+ New Order'}
               </button>
@@ -137,6 +141,62 @@ function App() {
         
         {/* Bottom Row: Navigation */}
         <nav className="main-nav">
+          {/* Manager only sees Operations */}
+          {user?.role === 'manager' ? (
+            <Link 
+              to="/operations" 
+              className={`nav-link ${location.pathname === '/operations' ? 'active' : ''}`}
+            >
+              🏭 Operations
+            </Link>
+          ) : user?.role === 'drycleaner' ? (
+            /* Dry Cleaner only sees Dry Cleaner Dashboard */
+            <Link 
+              to="/drycleaner" 
+              className={`nav-link ${location.pathname === '/drycleaner' ? 'active' : ''}`}
+            >
+              🫧 Dry Cleaner
+            </Link>
+          ) : user?.role === 'linentracker' ? (
+            /* Linen Tracker only sees Linen Tracker Dashboard */
+            <Link 
+              to="/linentracker" 
+              className={`nav-link ${location.pathname === '/linentracker' ? 'active' : ''}`}
+            >
+              📋 Linen Tracker
+            </Link>
+          ) : user?.role === 'backoffice' ? (
+            /* Back Office only sees Back Office Dashboard */
+            <Link 
+              to="/backoffice" 
+              className={`nav-link ${location.pathname === '/backoffice' ? 'active' : ''}`}
+            >
+              🏢 Back Office
+            </Link>
+          ) : user?.role === 'frontdesk' ? (
+            /* Frontdesk sees Orders, Customers, and Frontdesk Dashboard */
+            <>
+              <Link 
+                to="/" 
+                className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
+              >
+                📦 Orders
+              </Link>
+              <Link 
+                to="/customers" 
+                className={`nav-link ${location.pathname === '/customers' ? 'active' : ''}`}
+              >
+                👥 Customers
+              </Link>
+              <Link 
+                to="/frontdesk" 
+                className={`nav-link ${location.pathname === '/frontdesk' ? 'active' : ''}`}
+              >
+                🎫 Operations
+              </Link>
+            </>
+          ) : (
+            <>
           {/* Hide Orders for delivery role - they only see Delivery section */}
           {user?.role !== 'delivery' && (
             <Link 
@@ -171,14 +231,6 @@ function App() {
               🚴 Delivery
             </Link>
           )}
-          {(user?.role === 'manager' || user?.role === 'admin') && (
-            <Link 
-              to="/operations" 
-              className={`nav-link ${location.pathname === '/operations' ? 'active' : ''}`}
-            >
-              🏭 Operations
-            </Link>
-          )}
           {can(PERMISSIONS.REPORTS_VIEW) && user?.role !== 'delivery' && (
             <Link 
               to="/reports" 
@@ -186,6 +238,8 @@ function App() {
             >
               📊 Reports
             </Link>
+              )}
+            </>
           )}
         </nav>
       </header>
@@ -287,6 +341,13 @@ function App() {
     <>
       <AppHeader />
       <main className="app-main">
+        {/* Order Form for frontdesk users */}
+        {showOrderForm && user?.role === 'frontdesk' && (
+          <div className="interactive-form-overlay">
+            <InteractiveOrderForm onSubmit={handleCreateOrder} onCancel={() => setShowOrderForm(false)} />
+          </div>
+        )}
+
         {showCustomerForm && (
           <div className="interactive-form-overlay">
             <CustomerForm
@@ -337,6 +398,48 @@ function App() {
     </>
   );
 
+  const DryCleanerPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main drycleaner-main">
+        <DryCleanerDashboard />
+      </main>
+    </>
+  );
+
+  const LinenTrackerPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main linentracker-main">
+        <LinenTrackerDashboard />
+      </main>
+    </>
+  );
+
+  const BackOfficePage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main backoffice-main">
+        <BackOfficeDashboard />
+      </main>
+    </>
+  );
+
+  const FrontdeskPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main frontdesk-main">
+        {/* Order Form for frontdesk users */}
+        {showOrderForm && (
+          <div className="interactive-form-overlay">
+            <InteractiveOrderForm onSubmit={handleCreateOrder} onCancel={() => setShowOrderForm(false)} />
+          </div>
+        )}
+        <FrontdeskDashboard />
+      </main>
+    </>
+  );
+
   const ReportsPage = () => (
     <>
       <AppHeader />
@@ -364,34 +467,77 @@ function App() {
         } />
         <Route path="/" element={
           <ProtectedRoute>
-            {/* Redirect delivery role to delivery dashboard */}
-            {user?.role === 'delivery' ? <Navigate to="/delivery" replace /> : <DashboardPage />}
+            {/* Redirect specialized roles to their dashboards */}
+            {user?.role === 'manager' ? <Navigate to="/operations" replace /> : 
+             user?.role === 'drycleaner' ? <Navigate to="/drycleaner" replace /> :
+             user?.role === 'linentracker' ? <Navigate to="/linentracker" replace /> :
+             user?.role === 'backoffice' ? <Navigate to="/backoffice" replace /> :
+             user?.role === 'delivery' ? <Navigate to="/delivery" replace /> : <DashboardPage />}
           </ProtectedRoute>
         } />
         <Route path="/customers" element={
           <ProtectedRoute>
-            {/* Block delivery role from customers page */}
-            {user?.role === 'delivery' ? <Navigate to="/delivery" replace /> : <CustomerPage />}
+            {/* Block specialized roles */}
+            {user?.role === 'manager' ? <Navigate to="/operations" replace /> :
+             user?.role === 'drycleaner' ? <Navigate to="/drycleaner" replace /> :
+             user?.role === 'linentracker' ? <Navigate to="/linentracker" replace /> :
+             user?.role === 'backoffice' ? <Navigate to="/backoffice" replace /> :
+             user?.role === 'delivery' ? <Navigate to="/delivery" replace /> : <CustomerPage />}
           </ProtectedRoute>
         } />
         <Route path="/users" element={
           <ProtectedRoute>
-            <UserManagementPage />
+            {/* Block specialized roles */}
+            {user?.role === 'manager' ? <Navigate to="/operations" replace /> : 
+             user?.role === 'drycleaner' ? <Navigate to="/drycleaner" replace /> :
+             user?.role === 'linentracker' ? <Navigate to="/linentracker" replace /> :
+             user?.role === 'backoffice' ? <Navigate to="/backoffice" replace /> :
+             user?.role === 'frontdesk' ? <Navigate to="/frontdesk" replace /> :
+             user?.role === 'delivery' ? <Navigate to="/delivery" replace /> : <UserManagementPage />}
           </ProtectedRoute>
         } />
         <Route path="/delivery" element={
           <ProtectedRoute>
-            <DeliveryPage />
+            {/* Block specialized roles */}
+            {user?.role === 'manager' ? <Navigate to="/operations" replace /> : 
+             user?.role === 'drycleaner' ? <Navigate to="/drycleaner" replace /> :
+             user?.role === 'linentracker' ? <Navigate to="/linentracker" replace /> :
+             user?.role === 'backoffice' ? <Navigate to="/backoffice" replace /> : <DeliveryPage />}
           </ProtectedRoute>
         } />
         <Route path="/operations" element={
           <ProtectedRoute>
-            <OperationsPage />
+            {user?.role === 'manager' ? <OperationsPage /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/drycleaner" element={
+          <ProtectedRoute>
+            {user?.role === 'drycleaner' ? <DryCleanerPage /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/linentracker" element={
+          <ProtectedRoute>
+            {user?.role === 'linentracker' ? <LinenTrackerPage /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/backoffice" element={
+          <ProtectedRoute>
+            {user?.role === 'backoffice' ? <BackOfficePage /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/frontdesk" element={
+          <ProtectedRoute>
+            {user?.role === 'frontdesk' ? <FrontdeskPage /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/reports" element={
           <ProtectedRoute>
-            <ReportsPage />
+            {/* Block specialized roles */}
+            {user?.role === 'manager' ? <Navigate to="/operations" replace /> : 
+             user?.role === 'drycleaner' ? <Navigate to="/drycleaner" replace /> :
+             user?.role === 'linentracker' ? <Navigate to="/linentracker" replace /> :
+             user?.role === 'backoffice' ? <Navigate to="/backoffice" replace /> :
+             user?.role === 'delivery' ? <Navigate to="/delivery" replace /> : <ReportsPage />}
           </ProtectedRoute>
         } />
         <Route path="/order/:orderId" element={

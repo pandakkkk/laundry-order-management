@@ -1,42 +1,64 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
-import './OperationsDashboard.css';
+import './DryCleanerDashboard.css';
 
-const OperationsDashboard = () => {
+const DryCleanerDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [verifiedItems, setVerifiedItems] = useState({});
   const [updateLoading, setUpdateLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('readyforprocessing'); // readyforprocessing, sorting, or spotting
+  const [activeTab, setActiveTab] = useState('spotting'); // spotting, drycleaning, ironing, qualitycheck, packing
   const [stats, setStats] = useState({
-    readyforprocessing: 0,
-    sorting: 0,
-    spotting: 0
+    spotting: 0,
+    drycleaning: 0,
+    ironing: 0,
+    qualitycheck: 0,
+    packing: 0
   });
+
+  // Map tab names to actual status values
+  const tabToStatus = {
+    'spotting': 'Spotting',
+    'drycleaning': 'Dry Cleaning',
+    'ironing': 'Ironing',
+    'qualitycheck': 'Quality Check',
+    'packing': 'Packing'
+  };
+
+  // Get next status based on current tab
+  const getNextStatus = (tab) => {
+    const flow = {
+      'spotting': 'Dry Cleaning',
+      'drycleaning': 'Ironing',
+      'ironing': 'Quality Check',
+      'qualitycheck': 'Packing'
+    };
+    return flow[tab] || null;
+  };
+
+  // Check if current tab is view-only (last stage)
+  const isViewOnly = activeTab === 'packing';
 
   // Fetch orders based on active tab
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const statusMap = {
-        'readyforprocessing': 'Ready for Processing',
-        'sorting': 'Sorting',
-        'spotting': 'Spotting'
-      };
-      const status = statusMap[activeTab];
+      const status = tabToStatus[activeTab];
       const response = await api.getOrders({ status, limit: 100 });
       if (response.success) {
         setOrders(response.data || []);
       }
       
-      // Always fetch stats
+      // Fetch stats for all stages
       const statsResponse = await api.getOrderStats();
       if (statsResponse.success) {
         setStats({
-          readyforprocessing: statsResponse.data.readyForProcessingOrders || 0,
-          sorting: statsResponse.data.sortingOrders || 0,
-          spotting: statsResponse.data.spottingOrders || 0
+          spotting: statsResponse.data.spottingOrders || 0,
+          drycleaning: statsResponse.data.dryCleaningOrders || 0,
+          ironing: statsResponse.data.ironingOrders || 0,
+          qualitycheck: statsResponse.data.qualityCheckOrders || 0,
+          packing: statsResponse.data.packingOrders || 0
         });
       }
     } catch (error) {
@@ -44,6 +66,7 @@ const OperationsDashboard = () => {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   useEffect(() => {
@@ -58,6 +81,7 @@ const OperationsDashboard = () => {
 
   // Toggle item verification
   const toggleItemVerified = (index) => {
+    if (isViewOnly) return;
     setVerifiedItems(prev => ({
       ...prev,
       [index]: !prev[index]
@@ -75,27 +99,29 @@ const OperationsDashboard = () => {
     return Object.values(verifiedItems).filter(Boolean).length;
   };
 
-  // Get target status based on current tab
-  const getTargetStatus = () => {
-    return activeTab === 'readyforprocessing' ? 'Sorting' : 'Spotting';
-  };
-
   // Confirm status update
   const confirmStatusUpdate = async () => {
-    if (!selectedOrder || !allItemsVerified()) return;
+    if (!selectedOrder || !allItemsVerified() || isViewOnly) return;
     
-    const targetStatus = getTargetStatus();
+    const targetStatus = getNextStatus(activeTab);
+    if (!targetStatus) return;
     
     try {
       setUpdateLoading(true);
       await api.updateOrderStatus(selectedOrder._id, targetStatus);
       
       // Update tracking fields based on stage
-      const updateData = activeTab === 'received' 
-        ? { sortedAt: new Date(), sortedBy: 'Operations Manager' }
-        : { spottedAt: new Date(), spottedBy: 'Operations Manager' };
+      const trackingFields = {
+        'spotting': { dryCleanedAt: new Date(), dryCleanedBy: 'Dry Cleaner' },
+        'drycleaning': { ironedAt: new Date(), ironedBy: 'Dry Cleaner' },
+        'ironing': { qualityCheckedAt: new Date(), qualityCheckedBy: 'Dry Cleaner' },
+        'qualitycheck': { packedAt: new Date(), packedBy: 'Dry Cleaner' }
+      };
       
-      await api.updateOrder(selectedOrder._id, updateData);
+      if (trackingFields[activeTab]) {
+        await api.updateOrder(selectedOrder._id, trackingFields[activeTab]);
+      }
+      
       fetchOrders();
       setSelectedOrder(null);
       setVerifiedItems({});
@@ -106,120 +132,104 @@ const OperationsDashboard = () => {
     }
   };
 
-  // Handle Return order (from sorting phase)
-  const handleReturnOrder = async () => {
-    if (!selectedOrder) return;
-    
-    const confirmReturn = window.confirm(
-      `Are you sure you want to mark order ${selectedOrder.ticketNumber} for RETURN?\n\nThis will send it to Frontdesk for delivery assignment.`
-    );
-    
-    if (!confirmReturn) return;
-    
-    try {
-      setUpdateLoading(true);
-      await api.updateOrderStatus(selectedOrder._id, 'Return');
-      await api.updateOrder(selectedOrder._id, {
-        returnMarkedAt: new Date(),
-        returnMarkedBy: 'Operations Manager',
-        notes: (selectedOrder.notes || '') + '\n[Return marked from Sorting by Operations Manager]'
-      });
-      fetchOrders();
-      setSelectedOrder(null);
-      setVerifiedItems({});
-    } catch (error) {
-      alert('Failed to mark as return: ' + error.message);
-    } finally {
-      setUpdateLoading(false);
-    }
-  };
-
   // Get status color
   const getStatusColor = (status) => {
     const colors = {
-      'Ready for Processing': '#8b5cf6',
-      'Sorting': '#64748b',
-      'Spotting': '#f59e0b'
+      'Spotting': '#f59e0b',
+      'Dry Cleaning': '#06b6d4',
+      'Ironing': '#ec4899',
+      'Quality Check': '#8b5cf6',
+      'Packing': '#10b981'
     };
     return colors[status] || '#6b7280';
   };
 
+  // Get tab icon
+  const getTabIcon = (tab) => {
+    const icons = {
+      'spotting': '🎯',
+      'drycleaning': '🫧',
+      'ironing': '👔',
+      'qualitycheck': '🔍',
+      'packing': '📦'
+    };
+    return icons[tab] || '📋';
+  };
+
+  // Get tab label
+  const getTabLabel = (tab) => {
+    const labels = {
+      'spotting': 'Spotting',
+      'drycleaning': 'Dry Clean',
+      'ironing': 'Ironing',
+      'qualitycheck': 'QC',
+      'packing': 'Packing'
+    };
+    return labels[tab] || tab;
+  };
+
+  // Get section description
+  const getSectionDescription = () => {
+    if (isViewOnly) return 'View orders ready for dispatch';
+    const nextStatus = getNextStatus(activeTab);
+    return `Verify items and move to ${nextStatus}`;
+  };
+
   return (
-    <div className="operations-dashboard">
+    <div className="drycleaner-dashboard">
       {/* Header */}
-      <div className="ops-header">
-        <div className="ops-header-top">
-          <h1>🏭 Operations Dashboard</h1>
+      <div className="dc-header">
+        <div className="dc-header-top">
+          <h1>🫧 Dry Cleaner Dashboard</h1>
           <button className="btn-refresh" onClick={fetchOrders}>
             🔄
           </button>
         </div>
         
         {/* Stats Cards / Tabs */}
-        <div className="ops-stats">
-          <div 
-            className={`ops-stat-card readyforprocessing ${activeTab === 'readyforprocessing' ? 'active' : ''}`}
-            onClick={() => setActiveTab('readyforprocessing')}
-          >
-            <span className="stat-icon">✅</span>
-            <span className="stat-value">{stats.readyforprocessing}</span>
-            <span className="stat-label">Ready</span>
-          </div>
-          <div className="ops-flow-arrow">→</div>
-          <div 
-            className={`ops-stat-card sorting ${activeTab === 'sorting' ? 'active' : ''}`}
-            onClick={() => setActiveTab('sorting')}
-          >
-            <span className="stat-icon">📦</span>
-            <span className="stat-value">{stats.sorting}</span>
-            <span className="stat-label">Sorting</span>
-          </div>
-          <div className="ops-flow-arrow">→</div>
-          <div 
-            className={`ops-stat-card spotting ${activeTab === 'spotting' ? 'active' : ''}`}
-            onClick={() => setActiveTab('spotting')}
-          >
-            <span className="stat-icon">🔍</span>
-            <span className="stat-value">{stats.spotting}</span>
-            <span className="stat-label">Spotting</span>
-          </div>
+        <div className="dc-stats">
+          {['spotting', 'drycleaning', 'ironing', 'qualitycheck', 'packing'].map((tab, index, arr) => (
+            <React.Fragment key={tab}>
+              <div 
+                className={`dc-stat-card ${tab} ${activeTab === tab ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab)}
+              >
+                <span className="stat-icon">{getTabIcon(tab)}</span>
+                <span className="stat-value">{stats[tab]}</span>
+                <span className="stat-label">{getTabLabel(tab)}</span>
+              </div>
+              {index < arr.length - 1 && <div className="dc-flow-arrow">→</div>}
+            </React.Fragment>
+          ))}
         </div>
       </div>
 
       {/* Orders List */}
-      <div className="ops-content">
-        <div className="ops-section-header">
+      <div className="dc-content">
+        <div className="dc-section-header">
           <h2>
-            {activeTab === 'readyforprocessing' ? '✅ Ready for Processing' : 
-             activeTab === 'sorting' ? '📦 Sorting Orders' : 
-             '🔍 Spotting Orders'} ({orders.length})
+            {getTabIcon(activeTab)} {tabToStatus[activeTab]} Orders ({orders.length})
           </h2>
-          <p>
-            {activeTab === 'readyforprocessing' 
-              ? 'Orders from Back Office - Verify items and move to Sorting' 
-              : activeTab === 'sorting'
-              ? 'Verify items and move to Spotting'
-              : 'View orders in spotting stage'}
-          </p>
+          <p>{getSectionDescription()}</p>
         </div>
 
         {loading ? (
-          <div className="ops-loading">
+          <div className="dc-loading">
             <div className="spinner"></div>
             <p>Loading orders...</p>
           </div>
         ) : orders.length === 0 ? (
-          <div className="ops-empty">
+          <div className="dc-empty">
             <span className="empty-icon">✅</span>
             <h3>All Clear!</h3>
-            <p>No orders pending for processing</p>
+            <p>No orders pending in {tabToStatus[activeTab]}</p>
           </div>
         ) : (
-          <div className="ops-orders-grid">
+          <div className="dc-orders-grid">
             {orders.map((order) => (
               <div 
                 key={order._id} 
-                className="ops-order-card"
+                className="dc-order-card"
                 onClick={() => handleOrderSelect(order)}
               >
                 <div className="order-card-header">
@@ -246,9 +256,9 @@ const OperationsDashboard = () => {
                     className="status-badge"
                     style={{ backgroundColor: getStatusColor(order.status) }}
                   >
-                    {activeTab === 'received' ? '📥' : activeTab === 'sorting' ? '📦' : '🔍'} {order.status}
+                    {getTabIcon(activeTab)} {order.status}
                   </span>
-                  {activeTab !== 'spotting' && (
+                  {!isViewOnly && (
                     <button className="btn-process">
                       Process →
                     </button>
@@ -262,14 +272,14 @@ const OperationsDashboard = () => {
 
       {/* Order Processing Modal */}
       {selectedOrder && (
-        <div className="ops-modal-overlay" onClick={() => setSelectedOrder(null)}>
-          <div className="ops-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="dc-modal-overlay" onClick={() => setSelectedOrder(null)}>
+          <div className="dc-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">
                 <span className="modal-icon">📋</span>
                 <div>
                   <h2>{selectedOrder.ticketNumber}</h2>
-                  <p>{activeTab === 'spotting' ? 'Order Details' : 'Process Order'}</p>
+                  <p>{isViewOnly ? 'Order Details' : 'Process Order'}</p>
                 </div>
               </div>
               <button className="btn-close" onClick={() => setSelectedOrder(null)}>✕</button>
@@ -295,13 +305,13 @@ const OperationsDashboard = () => {
               {/* Items Verification / View */}
               <div className="items-verification-section">
                 <div className="section-header">
-                  <h4>{activeTab === 'spotting' ? '🧺 Items' : '🧺 Verify Items'}</h4>
-                  {activeTab !== 'spotting' && (
+                  <h4>{isViewOnly ? '🧺 Items' : '🧺 Verify Items'}</h4>
+                  {!isViewOnly && (
                     <span className="verification-progress">
                       {getVerifiedCount()}/{selectedOrder.items?.length || 0} verified
                     </span>
                   )}
-                  {activeTab === 'spotting' && (
+                  {isViewOnly && (
                     <span className="verification-progress">
                       {selectedOrder.items?.length || 0} items
                     </span>
@@ -312,10 +322,10 @@ const OperationsDashboard = () => {
                   {selectedOrder.items?.map((item, index) => (
                     <div 
                       key={index}
-                      className={`verification-item ${activeTab !== 'spotting' && verifiedItems[index] ? 'verified' : ''} ${activeTab === 'spotting' ? 'view-only' : ''}`}
-                      onClick={() => activeTab !== 'spotting' && toggleItemVerified(index)}
+                      className={`verification-item ${!isViewOnly && verifiedItems[index] ? 'verified' : ''} ${isViewOnly ? 'view-only' : ''}`}
+                      onClick={() => toggleItemVerified(index)}
                     >
-                      {activeTab !== 'spotting' && (
+                      {!isViewOnly && (
                         <div className="item-checkbox">
                           {verifiedItems[index] ? (
                             <span className="checkbox-checked">✓</span>
@@ -339,71 +349,40 @@ const OperationsDashboard = () => {
                   ))}
                 </div>
 
-                {/* Verification Message - only for received/sorting */}
-                {activeTab !== 'spotting' && (
+                {/* Verification Message - only for processing tabs */}
+                {!isViewOnly && (
                   <div className={`verification-message ${allItemsVerified() ? 'complete' : 'pending'}`}>
                     {allItemsVerified() ? (
-                      <>✅ All items verified! Select target status and confirm.</>
+                      <>✅ All items verified! Confirm to proceed.</>
                     ) : (
-                      <>⏳ Tap each item to verify count before processing</>
+                      <>⏳ Tap each item to verify before processing</>
                     )}
                   </div>
                 )}
               </div>
 
-              {/* Next Status Info - only for received/sorting */}
-              {activeTab !== 'spotting' && (
+              {/* Next Status Info - only for processing tabs */}
+              {!isViewOnly && (
                 <div className="next-status-info">
                   <span className="label">Will move to:</span>
                   <span className="next-status">
-                    {activeTab === 'received' ? '📦 Sorting' : '🔍 Spotting'}
+                    {getTabIcon(activeTab === 'spotting' ? 'drycleaning' : 
+                               activeTab === 'drycleaning' ? 'ironing' : 
+                               activeTab === 'ironing' ? 'qualitycheck' : 'packing')} {getNextStatus(activeTab)}
                   </span>
                 </div>
               )}
             </div>
 
             <div className="modal-footer">
-              {activeTab === 'spotting' ? (
+              {isViewOnly ? (
                 <button 
                   className="btn-close-full"
                   onClick={() => setSelectedOrder(null)}
                 >
                   Close
                 </button>
-              ) : activeTab === 'sorting' ? (
-                /* Sorting tab - Two options: Spotting or Return */
-                <>
-                  <button 
-                    className="btn-cancel"
-                    onClick={() => setSelectedOrder(null)}
-                    disabled={updateLoading}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    className="btn-return"
-                    onClick={handleReturnOrder}
-                    disabled={updateLoading}
-                  >
-                    {updateLoading ? '...' : '↩️ Return'}
-                  </button>
-                  <button 
-                    className={`btn-confirm ${!allItemsVerified() ? 'disabled' : ''}`}
-                    onClick={confirmStatusUpdate}
-                    disabled={!allItemsVerified() || updateLoading}
-                  >
-                    {updateLoading ? (
-                      <>
-                        <span className="spinner-small"></span>
-                        Processing...
-                      </>
-                    ) : (
-                      <>🔍 Move to Spotting</>
-                    )}
-                  </button>
-                </>
               ) : (
-                /* Ready for Processing tab - Only Sorting option */
                 <>
                   <button 
                     className="btn-cancel"
@@ -423,7 +402,7 @@ const OperationsDashboard = () => {
                         Processing...
                       </>
                     ) : (
-                      <>✓ Move to {getTargetStatus()}</>
+                      <>✓ Move to {getNextStatus(activeTab)}</>
                     )}
                   </button>
                 </>
@@ -436,5 +415,5 @@ const OperationsDashboard = () => {
   );
 };
 
-export default OperationsDashboard;
+export default DryCleanerDashboard;
 

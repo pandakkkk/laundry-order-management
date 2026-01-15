@@ -99,6 +99,26 @@
   color: #1e40af;
 }
 
+.status-workshop {
+  background: #c7d2fe;
+  color: #4338ca;
+}
+
+.status-tagged {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-processing {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-ready-delivery {
+  background: #fce7f3;
+  color: #9d174d;
+}
+
 .status-sorting,
 .status-spotting {
   background: #e0e7ff;

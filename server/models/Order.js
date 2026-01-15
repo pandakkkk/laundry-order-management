@@ -79,7 +79,10 @@ const orderSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
-      'Received',           // Order received at store
+      'Received',           // Order just created (legacy/initial)
+      'Received in Workshop', // Order physically received at workshop after pickup
+      'Tag Printed',        // Garment tags printed/attached
+      'Ready for Processing', // Tagged and ready for operations to process
       'Ready for Pickup',   // Ready to collect clothes FROM customer
       'Pickup In Progress', // Delivery boy going to collect from customer
       'Sorting',
@@ -105,7 +108,22 @@ const orderSchema = new mongoose.Schema({
   },
   rackNumber: {
     type: String,
-    enum: ['', 'Rack 1', 'Rack 2', 'Rack 3', 'Rack 4', 'Rack 5', 'Rack 6', 'Rack 7', 'Rack 8'],
+    default: ''
+  },
+  rackAssignedAt: {
+    type: Date,
+    default: null
+  },
+  rackAssignedBy: {
+    type: String,
+    default: ''
+  },
+  packedAt: {
+    type: Date,
+    default: null
+  },
+  packedBy: {
+    type: String,
     default: ''
   },
   notes: {

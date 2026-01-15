@@ -194,6 +194,41 @@ const ROLES = {
   },
   
   // ============================================
+  // DRYCLEANER - Dry Cleaning Operations
+  // ============================================
+  drycleaner: {
+    name: 'Dry Cleaner',
+    description: 'Handle dry cleaning workflow: Spotting, Dry Clean, Ironing, QC, Packing',
+    color: '#0891B2', // Cyan-600
+    icon: '🫧',
+    permissions: [
+      PERMISSIONS.ORDER_VIEW,
+      PERMISSIONS.ORDER_UPDATE,
+      PERMISSIONS.ORDER_STATUS_UPDATE,
+      PERMISSIONS.CUSTOMER_VIEW
+    ]
+  },
+  
+  // ============================================
+  // LINENTRACKER - Linen Tracking Operations
+  // ============================================
+  linentracker: {
+    name: 'Linen Tracker',
+    description: 'Track linens: Packing, Rack Assignment, Delivery Assignment',
+    color: '#059669', // Emerald-600
+    icon: '📋',
+    permissions: [
+      PERMISSIONS.ORDER_VIEW,
+      PERMISSIONS.ORDER_UPDATE,
+      PERMISSIONS.ORDER_STATUS_UPDATE,
+      PERMISSIONS.ORDER_ASSIGN,
+      PERMISSIONS.DELIVERY_VIEW,
+      PERMISSIONS.DELIVERY_ASSIGN,
+      PERMISSIONS.CUSTOMER_VIEW
+    ]
+  },
+  
+  // ============================================
   // FRONTDESK - Front Desk Operations
   // ============================================
   frontdesk: {
@@ -301,7 +336,9 @@ const canManageRole = (userRole, targetRole) => {
     accountant: 5,
     backoffice: 4,
     frontdesk: 4,
+    linentracker: 3,
     telecalling: 3,
+    drycleaner: 3,
     staff: 2,
     delivery: 2
   };

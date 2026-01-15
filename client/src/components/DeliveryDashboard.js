@@ -23,7 +23,8 @@ const DeliveryDashboard = () => {
     receivedBy: 'self',
     receiverName: '',
     receiverPhone: '',
-    notes: ''
+    notes: '',
+    paymentCollected: false
   });
   const [stats, setStats] = useState({
     toPickup: 0,  // Orders to collect from customers
@@ -54,7 +55,7 @@ const DeliveryDashboard = () => {
         
         // Calculate stats - only orders pending action
         const toPickup = response.data.filter(o => o.status === 'Ready for Pickup').length;
-        const toDrop = response.data.filter(o => o.status === 'Ready for Delivery').length;
+        const toDrop = response.data.filter(o => o.status === 'Ready for Delivery' || o.status === 'Out for Delivery').length;
         
         console.log('Stats - toPickup:', toPickup, 'toDrop:', toDrop);
         setStats({ toPickup, toDrop });
@@ -81,8 +82,8 @@ const DeliveryDashboard = () => {
       // PICKUP MODE - Orders to collect from customers
       filtered = filtered.filter(o => o.status === 'Ready for Pickup');
     } else {
-      // DROP MODE - Orders to deliver to customers
-      filtered = filtered.filter(o => o.status === 'Ready for Delivery');
+      // DROP MODE - Orders to deliver to customers (includes Out for Delivery)
+      filtered = filtered.filter(o => o.status === 'Ready for Delivery' || o.status === 'Out for Delivery');
     }
     
     setFilteredOrders(filtered);
@@ -119,13 +120,13 @@ const DeliveryDashboard = () => {
     return selectedOrder.items.every((_, index) => pickupVerifiedItems[index]);
   };
 
-  // Confirm pickup - Update status to Received (called from modal after verification)
+  // Confirm pickup - Update status to Received in Workshop (called from modal after verification)
   const confirmPickup = async () => {
     if (!selectedOrder) return;
     
     try {
       setPickupLoading(true);
-      await api.updateOrderStatus(selectedOrder._id, 'Received');
+      await api.updateOrderStatus(selectedOrder._id, 'Received in Workshop');
       await api.updateOrder(selectedOrder._id, {
         pickedUpAt: new Date()
       });
@@ -139,21 +140,6 @@ const DeliveryDashboard = () => {
     }
   };
 
-  // Mark as Delivered - Clothes delivered to customer, disappears from drop list
-  const handleMarkDelivered = async (order) => {
-    try {
-      await api.updateOrderStatus(order._id, 'Delivered');
-      await api.updateOrder(order._id, {
-        deliveredAt: new Date()
-      });
-      fetchOrders();
-      setSelectedOrder(null);
-      alert(`✅ Delivered: ${order.ticketNumber}`);
-    } catch (error) {
-      alert('Failed to mark as delivered');
-    }
-  };
-
   // Complete delivery
   const handleDeliveryComplete = async () => {
     if (!selectedOrder) return;
@@ -163,17 +149,39 @@ const DeliveryDashboard = () => {
       return;
     }
 
+    // Check COD payment collection
+    const isCOD = selectedOrder.paymentStatus !== 'Paid';
+    if (isCOD && !deliveryForm.paymentCollected) {
+      const proceed = window.confirm(
+        '⚠️ Payment has not been marked as collected!\n\nAre you sure you want to complete delivery without collecting payment?'
+      );
+      if (!proceed) return;
+    }
+
     try {
       await api.updateOrderStatus(selectedOrder._id, 'Delivered');
-      await api.updateOrder(selectedOrder._id, {
+      
+      const updateData = {
         deliveryNotes: deliveryForm.notes,
         deliveredTo: deliveryForm.receivedBy === 'self' ? selectedOrder.customerName : deliveryForm.receiverName,
         deliveredAt: new Date()
-      });
+      };
+      
+      // Update payment status if COD and collected
+      if (isCOD && deliveryForm.paymentCollected) {
+        updateData.paymentStatus = 'Paid';
+        updateData.paymentCollectedAt = new Date();
+        updateData.paymentCollectedBy = 'Delivery';
+      }
+      
+      await api.updateOrder(selectedOrder._id, updateData);
 
-      alert(`✅ Delivery completed for ${selectedOrder.ticketNumber}`);
+      const paymentMsg = isCOD && deliveryForm.paymentCollected ? ' | Payment collected ₹' + selectedOrder.totalAmount?.toLocaleString('en-IN') : '';
+      alert(`✅ Delivery completed for ${selectedOrder.ticketNumber}${paymentMsg}`);
+      
       setShowDeliveryForm(false);
       setSelectedOrder(null);
+      setDeliveryForm({ receivedBy: 'self', receiverName: '', receiverPhone: '', notes: '', paymentCollected: false });
       fetchOrders();
     } catch (error) {
       alert('Failed to complete delivery');
@@ -580,7 +588,7 @@ const DeliveryDashboard = () => {
                 </button>
               )}
               {activeMode === 'drop' && (
-                <button className="btn-primary drop" onClick={() => handleMarkDelivered(selectedOrder)}>
+                <button className="btn-primary drop" onClick={() => setShowDeliveryForm(true)}>
                   ✓ DELIVERED
                 </button>
               )}
@@ -603,7 +611,38 @@ const DeliveryDashboard = () => {
                 <h3>{selectedOrder.customerName}</h3>
                 <p>Ticket: {selectedOrder.ticketNumber}</p>
                 <p className="amount">Amount: ₹{selectedOrder.totalAmount?.toLocaleString('en-IN')}</p>
+                <span className={`payment-badge ${selectedOrder.paymentStatus === 'Paid' ? 'prepaid' : 'cod'}`}>
+                  {selectedOrder.paymentStatus === 'Paid' ? '✅ PREPAID' : '💵 COD'}
+                </span>
               </div>
+
+              {/* COD Payment Collection */}
+              {selectedOrder.paymentStatus !== 'Paid' && (
+                <div className={`cod-collection-section ${deliveryForm.paymentCollected ? 'collected' : ''}`}>
+                  <div className="cod-header">
+                    <span className="cod-icon">💵</span>
+                    <div className="cod-info">
+                      <h4>Collect Cash on Delivery</h4>
+                      <p className="cod-amount">₹{selectedOrder.totalAmount?.toLocaleString('en-IN')}</p>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    className={`btn-collect-payment ${deliveryForm.paymentCollected ? 'collected' : ''}`}
+                    onClick={() => setDeliveryForm({...deliveryForm, paymentCollected: !deliveryForm.paymentCollected})}
+                  >
+                    {deliveryForm.paymentCollected ? (
+                      <>✅ Payment Collected</>
+                    ) : (
+                      <>💵 Mark Payment Collected</>
+                    )}
+                  </button>
+                  
+                  {!deliveryForm.paymentCollected && (
+                    <p className="cod-warning">⚠️ Please collect payment before confirming delivery</p>
+                  )}
+                </div>
+              )}
 
               <div className="form-section">
                 <div className="form-group">

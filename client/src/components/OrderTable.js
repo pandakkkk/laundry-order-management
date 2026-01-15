@@ -8,6 +8,9 @@ const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSele
   const getStatusClass = useCallback((status) => {
     const statusClasses = {
       'Received': 'status-received',
+      'Received in Workshop': 'status-workshop',
+      'Tag Printed': 'status-tagged',
+      'Ready for Processing': 'status-processing',
       'Sorting': 'status-sorting',
       'Spotting': 'status-spotting',
       'Washing': 'status-washing',
@@ -17,6 +20,7 @@ const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSele
       'Quality Check': 'status-quality',
       'Packing': 'status-packing',
       'Ready for Pickup': 'status-ready',
+      'Ready for Delivery': 'status-ready-delivery',
       'Out for Delivery': 'status-delivery',
       'Delivered': 'status-delivered',
       'Return': 'status-return',
@@ -35,13 +39,17 @@ const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSele
   }, []);
 
   const isOverdue = useCallback((expectedDelivery, status) => {
-    if (status === 'Delivered' || status === 'Cancelled' || status === 'Return' || status === 'Refund') return false;
+    const nonOverdueStatuses = ['Delivered', 'Cancelled', 'Return', 'Refund', 'Received', 'Received in Workshop'];
+    if (nonOverdueStatuses.includes(status)) return false;
     return new Date(expectedDelivery) < new Date();
   }, []);
 
   const getStatusIcon = useCallback((status) => {
     const icons = {
       'Received': '📥',
+      'Received in Workshop': '🏭',
+      'Tag Printed': '🏷️',
+      'Ready for Processing': '✅',
       'Sorting': '📦',
       'Spotting': '🔍',
       'Washing': '🧼',
