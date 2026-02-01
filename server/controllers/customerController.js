@@ -1,5 +1,84 @@
 const Customer = require('../models/Customer');
 const Order = require('../models/Order');
+const Counter = require('../models/Counter');
+
+// Generate next customer ID
+const generateCustomerId = async () => {
+  const sequence = await Counter.getNextSequence('customerId');
+  return `CUST${String(sequence).padStart(5, '0')}`; // e.g., CUST00001
+};
+
+// Get next customer ID (preview without incrementing, then generate on create)
+exports.getNextCustomerId = async (req, res) => {
+  try {
+    const currentSeq = await Counter.getCurrentSequence('customerId');
+    const nextSeq = currentSeq + 1;
+    const nextCustomerId = `CUST${String(nextSeq).padStart(5, '0')}`;
+    
+    res.json({
+      success: true,
+      data: {
+        nextCustomerId,
+        sequence: nextSeq
+      }
+    });
+  } catch (error) {
+    console.error('Error getting next customer ID:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get next customer ID'
+    });
+  }
+};
+
+// Get customer by phone number (for auto-populate)
+exports.getCustomerByPhone = async (req, res) => {
+  try {
+    const { phone } = req.params;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'Phone number is required'
+      });
+    }
+
+    // Find exact match for phone number
+    const customer = await Customer.findOne({ phoneNumber: phone });
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        error: 'Customer not found',
+        exists: false
+      });
+    }
+
+    res.json({
+      success: true,
+      exists: true,
+      data: {
+        _id: customer._id,
+        customerId: customer.customerId,
+        name: customer.name,
+        phoneNumber: customer.phoneNumber,
+        email: customer.email,
+        address: customer.address,
+        city: customer.city,
+        state: customer.state,
+        pincode: customer.pincode,
+        totalOrders: customer.totalOrders,
+        totalSpent: customer.totalSpent
+      }
+    });
+  } catch (error) {
+    console.error('Error getting customer by phone:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get customer'
+    });
+  }
+};
 
 // Get all customers with pagination and filtering
 exports.getCustomers = async (req, res) => {
@@ -221,8 +300,12 @@ exports.createCustomer = async (req, res) => {
       });
     }
 
-    // Check if customerId is provided and unique
-    if (customerId) {
+    // Auto-generate customerId if not provided
+    let finalCustomerId = customerId;
+    if (!finalCustomerId) {
+      finalCustomerId = await generateCustomerId();
+    } else {
+      // Check if provided customerId is unique
       const existingCustomerId = await Customer.findOne({ customerId });
       if (existingCustomerId) {
         return res.status(400).json({ 
@@ -240,7 +323,7 @@ exports.createCustomer = async (req, res) => {
       city,
       state,
       pincode,
-      customerId,
+      customerId: finalCustomerId,
       notes,
       tags
     });

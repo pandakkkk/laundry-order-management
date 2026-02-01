@@ -13,7 +13,9 @@ const {
   getCustomerStats,
   bulkImportCustomers,
   getCustomerOrderHistory,
-  getCustomerAnalytics
+  getCustomerAnalytics,
+  getNextCustomerId,
+  getCustomerByPhone
 } = require('../controllers/customerController');
 
 // All routes require authentication
@@ -29,6 +31,18 @@ router.get('/',
 router.get('/stats',
   checkPermission(PERMISSIONS.CUSTOMER_VIEW),
   getCustomerStats
+);
+
+// Get next customer ID (for auto-generation preview)
+router.get('/next-id',
+  checkPermission(PERMISSIONS.CUSTOMER_VIEW),
+  getNextCustomerId
+);
+
+// Get customer by exact phone number (for auto-populate)
+router.get('/phone/:phone',
+  checkPermission(PERMISSIONS.CUSTOMER_VIEW),
+  getCustomerByPhone
 );
 
 // Search customers by phone

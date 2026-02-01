@@ -68,6 +68,12 @@ const api = {
     return response.data;
   },
 
+  // Get next ticket and order numbers (for auto-generation)
+  getNextOrderNumbers: async () => {
+    const response = await axios.get(`${API_BASE_URL}/orders/next-numbers`);
+    return response.data;
+  },
+
   // Generate and download receipt
   // paperSize can be 'A4', '80mm', or '58mm' for thermal printers
   generateReceipt: async (orderId, paperSize = 'A4') => {
@@ -97,6 +103,18 @@ const api = {
     const response = await axios.get(`${API_BASE_URL}/customers/search`, {
       params: { phone }
     });
+    return response.data;
+  },
+
+  // Get customer by exact phone number (for auto-populate)
+  getCustomerByPhone: async (phone) => {
+    const response = await axios.get(`${API_BASE_URL}/customers/phone/${encodeURIComponent(phone)}`);
+    return response.data;
+  },
+
+  // Get next customer ID (for auto-generation preview)
+  getNextCustomerId: async () => {
+    const response = await axios.get(`${API_BASE_URL}/customers/next-id`);
     return response.data;
   },
 

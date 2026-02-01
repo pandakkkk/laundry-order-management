@@ -11,6 +11,9 @@ router.get('/:id/public', orderController.getPublicOrderById);
 // Get orders statistics (check first to avoid conflict with /:id)
 router.get('/stats/summary', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getOrderStats);
 
+// Get next ticket and order numbers (for auto-generation)
+router.get('/next-numbers', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getNextOrderNumbers);
+
 // Search orders
 router.get('/search/query', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.searchOrders);
 

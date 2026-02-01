@@ -3,13 +3,19 @@ import './InteractiveOrderForm.css';
 import { PRODUCT_CATEGORIES, getProductsByCategory, calculateItemPrice } from '../data/productCatalog';
 import ProductOptionsModal from './ProductOptionsModal';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const canEditPrice = isAdmin || user?.role === 'manager';
+  
   const [selectedCategory, setSelectedCategory] = useState('household');
   const [cart, setCart] = useState([]);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [editingPriceId, setEditingPriceId] = useState(null);
   
   const [customerInfo, setCustomerInfo] = useState({
     ticketNumber: '',
@@ -36,6 +42,55 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   const customerSearchRef = useRef(null);
   const [sendWhatsAppReceipt, setSendWhatsAppReceipt] = useState(true);
   const [sendSMSReceipt, setSendSMSReceipt] = useState(false);
+  const [isLoadingNumbers, setIsLoadingNumbers] = useState(false);
+  const [customerFound, setCustomerFound] = useState(null);
+
+  // Fetch next ticket and order numbers when customer form opens
+  const fetchNextOrderNumbers = async () => {
+    try {
+      setIsLoadingNumbers(true);
+      const response = await api.getNextOrderNumbers();
+      if (response.success) {
+        setCustomerInfo(prev => ({
+          ...prev,
+          ticketNumber: response.data.ticketNumber,
+          orderNumber: response.data.orderNumber
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching next order numbers:', error);
+      // Keep fields empty - server will auto-generate
+    } finally {
+      setIsLoadingNumbers(false);
+    }
+  };
+
+  // Lookup customer by exact phone number
+  const lookupCustomerByPhone = async (phone) => {
+    if (!phone || phone.length < 10) {
+      setCustomerFound(null);
+      return;
+    }
+
+    try {
+      const response = await api.getCustomerByPhone(phone);
+      if (response.success && response.exists) {
+        setCustomerFound(response.data);
+        setCustomerInfo(prev => ({
+          ...prev,
+          customerId: response.data.customerId || '',
+          customerName: response.data.name || '',
+          location: response.data.address 
+            ? `${response.data.address}${response.data.city ? ', ' + response.data.city : ''}`
+            : prev.location
+        }));
+      } else {
+        setCustomerFound(null);
+      }
+    } catch (error) {
+      setCustomerFound(null);
+    }
+  };
 
   // Handle product click
   const handleProductClick = (product) => {
@@ -93,6 +148,15 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     ));
   };
 
+  // Update item price (admin only)
+  const updateItemPrice = (itemId, newPrice) => {
+    const parsedPrice = parseFloat(newPrice);
+    if (isNaN(parsedPrice) || parsedPrice < 0) return;
+    setCart(cart.map(item => 
+      item.id === itemId ? { ...item, price: parsedPrice } : item
+    ));
+  };
+
   // Calculate total
   const calculateTotal = () => {
     return cart.reduce((sum, item) => sum + (item.quantity * item.price), 0);
@@ -106,22 +170,34 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
       [name]: value
     }));
 
-    // Auto-search customers when phone number is typed
-    if (name === 'phoneNumber' && value.length >= 3) {
-      try {
-        setSearchingCustomer(true);
-        const response = await api.searchCustomersByPhone(value);
-        setCustomerSearchResults(response.data);
-        setShowCustomerSearch(response.data.length > 0);
-      } catch (error) {
-        console.error('Error searching customers:', error);
-        setCustomerSearchResults([]);
-      } finally {
-        setSearchingCustomer(false);
+    // Auto-search and auto-populate when phone number is typed
+    if (name === 'phoneNumber') {
+      // Clear customer found state when phone changes
+      if (customerFound && value !== customerFound.phoneNumber) {
+        setCustomerFound(null);
       }
-    } else if (name === 'phoneNumber') {
-      setCustomerSearchResults([]);
-      setShowCustomerSearch(false);
+      
+      if (value.length >= 10) {
+        // Try exact match lookup for auto-populate
+        lookupCustomerByPhone(value);
+      }
+      
+      if (value.length >= 3) {
+        try {
+          setSearchingCustomer(true);
+          const response = await api.searchCustomersByPhone(value);
+          setCustomerSearchResults(response.data);
+          setShowCustomerSearch(response.data.length > 0);
+        } catch (error) {
+          console.error('Error searching customers:', error);
+          setCustomerSearchResults([]);
+        } finally {
+          setSearchingCustomer(false);
+        }
+      } else {
+        setCustomerSearchResults([]);
+        setShowCustomerSearch(false);
+      }
     }
   };
 
@@ -134,6 +210,7 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
       customerId: customer.customerId || '',
       location: customer.address ? `${customer.address}${customer.city ? ', ' + customer.city : ''}` : ''
     }));
+    setCustomerFound(customer);
     setShowCustomerSearch(false);
     setCustomerSearchResults([]);
   };
@@ -180,6 +257,7 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     }
     setShowCustomerForm(true);
     loadAllCustomers(); // Load customers when opening form
+    fetchNextOrderNumbers(); // Fetch next ticket and order numbers
   };
 
   // Handle customer selection from dropdown
@@ -187,6 +265,7 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     setSelectedCustomerFromList(customer._id);
     setCustomerSearchQuery(`${customer.name} - ${customer.phoneNumber}`);
     setShowCustomerDropdown(false);
+    setCustomerFound(customer);
     
     setCustomerInfo(prev => ({
       ...prev,
@@ -202,6 +281,7 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     setSelectedCustomerFromList('');
     setCustomerSearchQuery('');
     setFilteredCustomers(allCustomers);
+    setCustomerFound(null);
     setCustomerInfo(prev => ({
       ...prev,
       phoneNumber: '',
@@ -229,9 +309,9 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Validation
-    if (!customerInfo.ticketNumber || !customerInfo.customerId || !customerInfo.customerName || !customerInfo.phoneNumber) {
-      alert('Please fill in all required customer information');
+    // Validation - ticketNumber, orderNumber and customerId are optional (auto-generated)
+    if (!customerInfo.customerName || !customerInfo.phoneNumber) {
+      alert('Please fill in customer name and phone number');
       return;
     }
 
@@ -252,6 +332,9 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
 
     const orderData = {
       ...customerInfo,
+      // If customerId is empty, generate a placeholder that server will handle
+      customerId: customerInfo.customerId || `NEW-${customerInfo.phoneNumber}`,
+      // ticketNumber and orderNumber will be auto-generated by server if empty
       orderDate: new Date().toISOString(),
       expectedDelivery: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days default
       items: cart.map(item => ({
@@ -308,7 +391,35 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
                   <div className="cart-item-info">
                     <div className="cart-item-name">{item.name}</div>
                     <div className="cart-item-desc">{item.description}</div>
-                    <div className="cart-item-price">₹{item.price.toFixed(2)}</div>
+                    <div className="cart-item-price">
+                      {canEditPrice ? (
+                        editingPriceId === item.id ? (
+                          <input
+                            type="number"
+                            className="price-edit-input"
+                            value={item.price}
+                            onChange={(e) => updateItemPrice(item.id, e.target.value)}
+                            onBlur={() => setEditingPriceId(null)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') setEditingPriceId(null);
+                            }}
+                            autoFocus
+                            min="0"
+                            step="0.01"
+                          />
+                        ) : (
+                          <span 
+                            className="editable-price"
+                            onClick={() => setEditingPriceId(item.id)}
+                            title="Click to edit price"
+                          >
+                            ₹{item.price.toFixed(2)} ✏️
+                          </span>
+                        )
+                      ) : (
+                        <span>₹{item.price.toFixed(2)}</span>
+                      )}
+                    </div>
                   </div>
                   <div className="cart-item-actions">
                     <div className="quantity-controls">
@@ -477,44 +588,58 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="ticketNumber">Ticket Number *</label>
+                  <label htmlFor="ticketNumber">
+                    Ticket Number
+                    <span style={{ color: '#4caf50', fontSize: '0.7rem', marginLeft: '5px' }}>✨ Auto</span>
+                  </label>
                   <input
                     type="text"
                     id="ticketNumber"
                     name="ticketNumber"
-                    value={customerInfo.ticketNumber}
+                    value={isLoadingNumbers ? 'Loading...' : customerInfo.ticketNumber}
                     onChange={handleCustomerInfoChange}
-                    placeholder="e.g., 2504-143-00002"
-                    required
+                    placeholder="Auto-generated"
+                    disabled={isLoadingNumbers}
+                    style={{ backgroundColor: customerInfo.ticketNumber ? '#e8f5e9' : undefined }}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="orderNumber">Order Number *</label>
+                  <label htmlFor="orderNumber">
+                    Order Number
+                    <span style={{ color: '#4caf50', fontSize: '0.7rem', marginLeft: '5px' }}>✨ Auto</span>
+                  </label>
                   <input
                     type="text"
                     id="orderNumber"
                     name="orderNumber"
-                    value={customerInfo.orderNumber}
+                    value={isLoadingNumbers ? 'Loading...' : customerInfo.orderNumber}
                     onChange={handleCustomerInfoChange}
-                    placeholder="e.g., 002"
-                    required
+                    placeholder="Auto-generated"
+                    disabled={isLoadingNumbers}
+                    style={{ backgroundColor: customerInfo.orderNumber ? '#e8f5e9' : undefined }}
                   />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="customerId">Customer ID *</label>
+                  <label htmlFor="customerId">
+                    Customer ID
+                    {customerFound && <span style={{ color: '#4caf50', fontSize: '0.7rem', marginLeft: '5px' }}>✅ Found</span>}
+                  </label>
                   <input
                     type="text"
                     id="customerId"
                     name="customerId"
                     value={customerInfo.customerId}
                     onChange={handleCustomerInfoChange}
-                    placeholder="e.g., CUST001"
-                    required
+                    placeholder="Auto-filled from phone"
+                    style={{ backgroundColor: customerFound ? '#e8f5e9' : undefined }}
                   />
+                  <small style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
+                    Auto-populated when existing customer phone is entered
+                  </small>
                 </div>
 
                 <div className="form-group">
@@ -527,13 +652,17 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
                     onChange={handleCustomerInfoChange}
                     placeholder="Customer name"
                     required
+                    style={{ backgroundColor: customerFound ? '#e8f5e9' : undefined }}
                   />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="phoneNumber">Phone Number *</label>
+                  <label htmlFor="phoneNumber">
+                    Phone Number *
+                    {customerFound && <span style={{ color: '#4caf50', fontSize: '0.7rem', marginLeft: '5px' }}>✅ Customer Found</span>}
+                  </label>
                   <div className="phone-search-container">
                     <input
                       type="tel"
@@ -543,6 +672,7 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
                       onChange={handleCustomerInfoChange}
                       placeholder="+91 XXXXXXXXXX"
                       required
+                      style={{ backgroundColor: customerFound ? '#e8f5e9' : undefined }}
                     />
                     {searchingCustomer && (
                       <div className="search-indicator">Searching...</div>
@@ -570,6 +700,11 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
                       </div>
                     )}
                   </div>
+                  <small style={{ color: customerFound ? '#2e7d32' : 'var(--text-secondary)', fontSize: '0.7rem' }}>
+                    {customerFound 
+                      ? 'Customer ID and Name auto-filled from existing record'
+                      : 'Enter phone to auto-lookup existing customer'}
+                  </small>
                 </div>
 
                 <div className="form-group">

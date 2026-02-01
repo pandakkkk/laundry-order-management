@@ -1,4 +1,74 @@
 const Order = require('../models/Order');
+const Counter = require('../models/Counter');
+
+// Generate ticket number in format: YYMMDD-XXX-NNNNN
+// e.g., 260201-001-00001 (date-store-sequence)
+const generateTicketNumber = async () => {
+  const now = new Date();
+  const year = String(now.getFullYear()).slice(-2);
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const datePrefix = `${year}${month}${day}`;
+  
+  // Use daily counter for ticket numbers
+  const counterId = `ticket_${datePrefix}`;
+  const sequence = await Counter.getNextSequence(counterId);
+  
+  return `${datePrefix}-001-${String(sequence).padStart(5, '0')}`;
+};
+
+// Generate simple order number (daily sequential)
+const generateOrderNumber = async () => {
+  const now = new Date();
+  const year = String(now.getFullYear()).slice(-2);
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const datePrefix = `${year}${month}${day}`;
+  
+  // Use daily counter for order numbers
+  const counterId = `order_${datePrefix}`;
+  const sequence = await Counter.getNextSequence(counterId);
+  
+  return String(sequence).padStart(3, '0');
+};
+
+// Get next ticket and order numbers (preview for form)
+exports.getNextOrderNumbers = async (req, res) => {
+  try {
+    const now = new Date();
+    const year = String(now.getFullYear()).slice(-2);
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const datePrefix = `${year}${month}${day}`;
+    
+    // Get current sequences without incrementing
+    const ticketCounterId = `ticket_${datePrefix}`;
+    const orderCounterId = `order_${datePrefix}`;
+    
+    const ticketSeq = await Counter.getCurrentSequence(ticketCounterId);
+    const orderSeq = await Counter.getCurrentSequence(orderCounterId);
+    
+    const nextTicketSeq = ticketSeq + 1;
+    const nextOrderSeq = orderSeq + 1;
+    
+    res.json({
+      success: true,
+      data: {
+        ticketNumber: `${datePrefix}-001-${String(nextTicketSeq).padStart(5, '0')}`,
+        orderNumber: String(nextOrderSeq).padStart(3, '0'),
+        date: datePrefix,
+        ticketSequence: nextTicketSeq,
+        orderSequence: nextOrderSeq
+      }
+    });
+  } catch (error) {
+    console.error('Error getting next order numbers:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get next order numbers'
+    });
+  }
+};
 
 // Get all orders with pagination
 exports.getAllOrders = async (req, res) => {
@@ -162,7 +232,19 @@ exports.getOrderByTicketNumber = async (req, res) => {
 // Create new order
 exports.createOrder = async (req, res) => {
   try {
-    const order = await Order.create(req.body);
+    const orderData = { ...req.body };
+    
+    // Auto-generate ticketNumber if not provided or empty
+    if (!orderData.ticketNumber || orderData.ticketNumber.trim() === '') {
+      orderData.ticketNumber = await generateTicketNumber();
+    }
+    
+    // Auto-generate orderNumber if not provided or empty
+    if (!orderData.orderNumber || orderData.orderNumber.trim() === '') {
+      orderData.orderNumber = await generateOrderNumber();
+    }
+    
+    const order = await Order.create(orderData);
     
     // Send order confirmation notification (async, don't wait)
     const notificationService = require('../services/notificationService');

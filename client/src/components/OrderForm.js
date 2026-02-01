@@ -1,5 +1,6 @@
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useEffect, useCallback } from 'react';
 import './OrderForm.css';
+import api from '../services/api';
 
 const OrderForm = memo(({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -22,12 +23,92 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
     { description: '', quantity: 1, price: 0 }
   ]);
 
+  const [isLoadingNumbers, setIsLoadingNumbers] = useState(true);
+  const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
+  const [customerFound, setCustomerFound] = useState(null);
+
+  // Fetch next ticket and order numbers on component mount
+  useEffect(() => {
+    const fetchNextNumbers = async () => {
+      try {
+        setIsLoadingNumbers(true);
+        const response = await api.getNextOrderNumbers();
+        if (response.success) {
+          setFormData(prev => ({
+            ...prev,
+            ticketNumber: response.data.ticketNumber,
+            orderNumber: response.data.orderNumber
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching next order numbers:', error);
+        // Keep fields empty if fetch fails - server will auto-generate
+      } finally {
+        setIsLoadingNumbers(false);
+      }
+    };
+    fetchNextNumbers();
+  }, []);
+
+  // Debounced phone number lookup
+  const lookupCustomerByPhone = useCallback(async (phone) => {
+    if (!phone || phone.length < 10) {
+      setCustomerFound(null);
+      return;
+    }
+
+    try {
+      setIsSearchingCustomer(true);
+      const response = await api.getCustomerByPhone(phone);
+      if (response.success && response.exists) {
+        setCustomerFound(response.data);
+        // Auto-populate customer fields
+        setFormData(prev => ({
+          ...prev,
+          customerId: response.data.customerId || '',
+          customerName: response.data.name || '',
+          location: response.data.address 
+            ? `${response.data.address}${response.data.city ? ', ' + response.data.city : ''}`
+            : ''
+        }));
+      } else {
+        setCustomerFound(null);
+      }
+    } catch (error) {
+      // Customer not found - that's okay, it's a new customer
+      setCustomerFound(null);
+      console.log('Customer not found for phone:', phone);
+    } finally {
+      setIsSearchingCustomer(false);
+    }
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+
+    // Auto-lookup customer when phone number is entered
+    if (name === 'phoneNumber') {
+      // Clear customer info if phone is being changed
+      if (customerFound && value !== customerFound.phoneNumber) {
+        setCustomerFound(null);
+        setFormData(prev => ({
+          ...prev,
+          [name]: value,
+          customerId: '',
+          customerName: '',
+          location: ''
+        }));
+      }
+      // Debounce the lookup
+      const timeoutId = setTimeout(() => {
+        lookupCustomerByPhone(value);
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
   };
 
   const handleItemChange = (index, field, value) => {
@@ -54,9 +135,9 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Validation
-    if (!formData.ticketNumber || !formData.customerId || !formData.customerName || !formData.phoneNumber) {
-      alert('Please fill in all required fields');
+    // Validation - ticketNumber and orderNumber are now optional (auto-generated)
+    if (!formData.customerName || !formData.phoneNumber) {
+      alert('Please fill in customer name and phone number');
       return;
     }
 
@@ -67,6 +148,8 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
 
     const orderData = {
       ...formData,
+      // If customerId is empty, it will be auto-generated from phone lookup or created as new customer
+      customerId: formData.customerId || `NEW-${formData.phoneNumber}`,
       orderDate: new Date(formData.orderDate).toISOString(),
       expectedDelivery: new Date(formData.expectedDelivery).toISOString(),
       items: items.map(item => ({
@@ -92,29 +175,37 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
           <h3>Order Information</h3>
           <div className="form-grid">
             <div className="form-group">
-              <label htmlFor="ticketNumber">Ticket Number *</label>
+              <label htmlFor="ticketNumber">Ticket Number</label>
               <input
                 type="text"
                 id="ticketNumber"
                 name="ticketNumber"
-                value={formData.ticketNumber}
+                value={isLoadingNumbers ? 'Loading...' : formData.ticketNumber}
                 onChange={handleInputChange}
-                placeholder="e.g., 2504-143-00002"
-                required
+                placeholder="Auto-generated"
+                disabled={isLoadingNumbers}
+                style={{ backgroundColor: formData.ticketNumber ? '#e8f5e9' : undefined }}
               />
+              <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                ✨ Auto-generated (editable)
+              </small>
             </div>
 
             <div className="form-group">
-              <label htmlFor="orderNumber">Order Number *</label>
+              <label htmlFor="orderNumber">Order Number</label>
               <input
                 type="text"
                 id="orderNumber"
                 name="orderNumber"
-                value={formData.orderNumber}
+                value={isLoadingNumbers ? 'Loading...' : formData.orderNumber}
                 onChange={handleInputChange}
-                placeholder="e.g., 002"
-                required
+                placeholder="Auto-generated"
+                disabled={isLoadingNumbers}
+                style={{ backgroundColor: formData.orderNumber ? '#e8f5e9' : undefined }}
               />
+              <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                ✨ Auto-generated (editable)
+              </small>
             </div>
 
             <div className="form-group">
@@ -162,18 +253,38 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
           <h3>Customer Information</h3>
           <div className="form-grid">
             <div className="form-group">
-              <label htmlFor="customerId">Customer ID *</label>
-              <input
-                type="text"
-                id="customerId"
-                name="customerId"
-                value={formData.customerId}
-                onChange={handleInputChange}
-                placeholder="e.g., CUST001 or auto-generated"
-                required
-              />
-              <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                Unique identifier for the customer
+              <label htmlFor="phoneNumber">Phone Number *</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="tel"
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={handleInputChange}
+                  placeholder="+91 XXXXXXXXXX"
+                  required
+                  style={{ 
+                    backgroundColor: customerFound ? '#e8f5e9' : undefined,
+                    paddingRight: isSearchingCustomer ? '40px' : undefined
+                  }}
+                />
+                {isSearchingCustomer && (
+                  <span style={{ 
+                    position: 'absolute', 
+                    right: '10px', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)',
+                    fontSize: '0.8rem',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    🔍
+                  </span>
+                )}
+              </div>
+              <small style={{ color: customerFound ? '#2e7d32' : 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                {customerFound 
+                  ? `✅ Existing customer found - ID auto-filled`
+                  : 'Enter phone to auto-lookup customer'}
               </small>
             </div>
 
@@ -187,20 +298,24 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
                 onChange={handleInputChange}
                 placeholder="Customer name"
                 required
+                style={{ backgroundColor: customerFound ? '#e8f5e9' : undefined }}
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="phoneNumber">Phone Number *</label>
+              <label htmlFor="customerId">Customer ID</label>
               <input
-                type="tel"
-                id="phoneNumber"
-                name="phoneNumber"
-                value={formData.phoneNumber}
+                type="text"
+                id="customerId"
+                name="customerId"
+                value={formData.customerId}
                 onChange={handleInputChange}
-                placeholder="+91 XXXXXXXXXX"
-                required
+                placeholder="Auto-populated from phone"
+                style={{ backgroundColor: formData.customerId ? '#e8f5e9' : undefined }}
               />
+              <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                ✨ Auto-populated when existing customer phone is entered
+              </small>
             </div>
 
             <div className="form-group full-width">
