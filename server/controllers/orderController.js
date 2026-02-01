@@ -455,6 +455,24 @@ exports.getOrderStats = async (req, res) => {
   }
 };
 
+// Convert tag number to ticket number search pattern
+// Tag format: GT-MMDD-SEQ (e.g., GT-0109-001)
+// Ticket format: YYMMDD-001-NNNNN (e.g., 260109-001-00001)
+const tagNumberToTicketPattern = (tagNumber) => {
+  if (!tagNumber) return null;
+  
+  const match = tagNumber.toUpperCase().match(/^GT-(\d{4})-(\d{3,5})$/);
+  if (!match) return null;
+  
+  const mmdd = match[1]; // e.g., "0109"
+  const seq = match[2];   // e.g., "001"
+  
+  // Return pattern: MMDD portion and sequence (padded to 5 digits)
+  // This will match tickets like "260109-001-00001"
+  const paddedSeq = seq.padStart(5, '0');
+  return `${mmdd}-001-${paddedSeq}`;
+};
+
 // Search orders
 exports.searchOrders = async (req, res) => {
   try {
@@ -468,9 +486,21 @@ exports.searchOrders = async (req, res) => {
     }
     
     let searchQuery;
+    let searchValue = q;
     
+    // Handle tag number search - convert to ticket number pattern
+    if (field === 'tagNumber') {
+      const ticketPattern = tagNumberToTicketPattern(q);
+      if (ticketPattern) {
+        // Search ticket number with the converted pattern
+        searchQuery = { ticketNumber: { $regex: ticketPattern, $options: 'i' } };
+      } else {
+        // Invalid tag format, try searching as-is
+        searchQuery = { ticketNumber: { $regex: q, $options: 'i' } };
+      }
+    }
     // Field-specific search
-    if (field && field !== 'all') {
+    else if (field && field !== 'all') {
       const fieldMap = {
         'ticketNumber': 'ticketNumber',
         'customerId': 'customerId',
@@ -494,10 +524,18 @@ exports.searchOrders = async (req, res) => {
         };
       }
     } else {
-      // Search all fields
+      // Search all fields - also check if query looks like a tag number
+      const tagPattern = tagNumberToTicketPattern(q);
+      const ticketSearches = [{ ticketNumber: { $regex: q, $options: 'i' } }];
+      
+      // If query looks like a tag number, also search by converted pattern
+      if (tagPattern) {
+        ticketSearches.push({ ticketNumber: { $regex: tagPattern, $options: 'i' } });
+      }
+      
       searchQuery = {
         $or: [
-          { ticketNumber: { $regex: q, $options: 'i' } },
+          ...ticketSearches,
           { customerId: { $regex: q, $options: 'i' } },
           { customerName: { $regex: q, $options: 'i' } },
           { phoneNumber: { $regex: q, $options: 'i' } },

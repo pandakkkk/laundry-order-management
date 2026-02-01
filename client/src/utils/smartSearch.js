@@ -12,17 +12,25 @@ const PHONE_PATTERN = /^(\+91|91)?[\s-]?[6-9]\d{9}$/;
 // Detect customer ID pattern: e.g., CUST001, CUST123
 const CUSTOMER_ID_PATTERN = /^CUST\d+$/i;
 
+// Detect tag number pattern: e.g., GT-0109-001, GT-1225-00012
+const TAG_NUMBER_PATTERN = /^GT-\d{4}-\d{3,5}$/i;
+
 /**
  * Detect the search type from query
  * @param {string} query - The search query
- * @returns {string} - 'ticketNumber', 'phoneNumber', 'customerId', or 'all'
+ * @returns {string} - 'ticketNumber', 'phoneNumber', 'customerId', 'tagNumber', or 'all'
  */
 export const detectSearchType = (query) => {
   if (!query || !query.trim()) return 'all';
   
   const trimmed = query.trim();
   
-  // Check for customer ID first (most specific)
+  // Check for tag number first (GT-MMDD-SEQ format)
+  if (TAG_NUMBER_PATTERN.test(trimmed)) {
+    return 'tagNumber';
+  }
+  
+  // Check for customer ID (most specific)
   if (CUSTOMER_ID_PATTERN.test(trimmed)) {
     return 'customerId';
   }
@@ -42,6 +50,28 @@ export const detectSearchType = (query) => {
 };
 
 /**
+ * Convert tag number to ticket number search pattern
+ * Tag format: GT-MMDD-SEQ (e.g., GT-0109-001)
+ * Ticket format: YYMMDD-001-NNNNN (e.g., 260109-001-00001)
+ * @param {string} tagNumber - The tag number to convert
+ * @returns {string} - Partial ticket number pattern for search
+ */
+export const tagNumberToTicketPattern = (tagNumber) => {
+  if (!tagNumber) return '';
+  
+  const match = tagNumber.toUpperCase().match(/^GT-(\d{4})-(\d{3,5})$/);
+  if (!match) return tagNumber;
+  
+  const mmdd = match[1]; // e.g., "0109"
+  const seq = match[2];   // e.g., "001"
+  
+  // Return pattern: MMDD portion and sequence (padded to 5 digits)
+  // This will match tickets like "260109-001-00001"
+  const paddedSeq = seq.padStart(5, '0');
+  return `${mmdd}-001-${paddedSeq}`;
+};
+
+/**
  * Get search type label for display
  * @param {string} searchType - The detected search type
  * @returns {string} - Human-readable label
@@ -49,6 +79,7 @@ export const detectSearchType = (query) => {
 export const getSearchTypeLabel = (searchType) => {
   const labels = {
     'ticketNumber': '🎫 Ticket Number',
+    'tagNumber': '🏷️ Tag Number',
     'phoneNumber': '📞 Phone Number',
     'customerId': '👤 Customer ID',
     'customerName': '📝 Customer Name',
@@ -82,10 +113,11 @@ export const getPlaceholder = (searchType, context = 'order') => {
   const placeholders = {
     order: {
       'ticketNumber': 'Enter ticket number (e.g., 2511-001-012)',
+      'tagNumber': 'Enter tag number (e.g., GT-0109-001)',
       'phoneNumber': 'Enter phone number (e.g., +91 98765 43210)',
       'customerId': 'Enter customer ID (e.g., CUST001)',
       'customerName': 'Enter customer name',
-      'all': 'Track by ticket, phone, customer ID, or name...'
+      'all': 'Track by ticket, tag, phone, customer ID, or name...'
     },
     customer: {
       'phoneNumber': 'Enter phone number (e.g., +91 98765 43210)',
