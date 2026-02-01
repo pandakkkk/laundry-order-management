@@ -13,11 +13,8 @@ const GarmentTagPrint = ({ order, onClose }) => {
   const tagNumber = generateTagNumber(order.ticketNumber);
 
   const handlePrint = () => {
-    // Close modal first to prevent page freeze
-    onClose?.();
-    
     try {
-      const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+      const printWindow = window.open('', '_blank');
       if (!printWindow) {
         alert('Please allow pop-ups to print tags');
         return;
@@ -35,7 +32,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
           ${tagSize !== 'thermal' ? '<div class="tag-hole"></div>' : ''}
           <div class="tag-top">
             <div class="tag-qr">
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}&data=${encodeURIComponent(orderViewUrl)}" alt="QR" />
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}&data=${encodeURIComponent(orderViewUrl)}" alt="QR" crossorigin="anonymous" />
             </div>
             <div class="tag-info">
               <div class="tag-number">${tagNumber}</div>
@@ -48,7 +45,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
         </div>
       `).join('');
 
-      printWindow.document.write(`
+      const htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -63,6 +60,16 @@ const GarmentTagPrint = ({ order, onClose }) => {
               flex-wrap: wrap;
               gap: 5mm;
               justify-content: flex-start;
+            }
+            
+            .loading-message {
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              font-size: 18px;
+              color: #666;
+              text-align: center;
             }
             
             .garment-tag {
@@ -181,6 +188,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
             .size-thermal .tag-ticket { font-size: 8pt; margin-top: 1mm; }
             
             @media print {
+              .loading-message { display: none !important; }
               body { padding: 0; margin: 0; }
               @page { 
                 size: ${tagSize === 'thermal' ? '2in 2in' : 'A4'}; 
@@ -190,19 +198,73 @@ const GarmentTagPrint = ({ order, onClose }) => {
           </style>
         </head>
         <body>
-          ${tagsHtml}
+          <div class="loading-message" id="loadingMsg">Loading tags...</div>
+          <div id="tagsContainer" style="display: none;">
+            ${tagsHtml}
+          </div>
           <script>
-            window.onload = function() {
-              setTimeout(function() {
-                window.print();
-              }, 500);
-            };
+            (function() {
+              var container = document.getElementById('tagsContainer');
+              var loadingMsg = document.getElementById('loadingMsg');
+              var images = container.getElementsByTagName('img');
+              var loadedCount = 0;
+              var totalImages = images.length;
+              
+              function checkAllLoaded() {
+                loadedCount++;
+                if (loadedCount >= totalImages) {
+                  // All images loaded, show content and print
+                  loadingMsg.style.display = 'none';
+                  container.style.display = 'flex';
+                  container.style.flexWrap = 'wrap';
+                  container.style.gap = '5mm';
+                  
+                  // Small delay to ensure rendering is complete
+                  setTimeout(function() {
+                    window.print();
+                  }, 100);
+                }
+              }
+              
+              if (totalImages === 0) {
+                // No images, just print
+                loadingMsg.style.display = 'none';
+                container.style.display = 'flex';
+                setTimeout(function() { window.print(); }, 100);
+              } else {
+                // Wait for all images to load
+                for (var i = 0; i < images.length; i++) {
+                  if (images[i].complete) {
+                    checkAllLoaded();
+                  } else {
+                    images[i].onload = checkAllLoaded;
+                    images[i].onerror = checkAllLoaded; // Count errors too to avoid hanging
+                  }
+                }
+                
+                // Fallback: if images don't load in 5 seconds, print anyway
+                setTimeout(function() {
+                  if (container.style.display === 'none') {
+                    loadingMsg.textContent = 'Printing...';
+                    loadingMsg.style.display = 'none';
+                    container.style.display = 'flex';
+                    container.style.flexWrap = 'wrap';
+                    container.style.gap = '5mm';
+                    window.print();
+                  }
+                }, 5000);
+              }
+            })();
           </script>
         </body>
         </html>
-      `);
+      `;
+
+      printWindow.document.write(htmlContent);
       printWindow.document.close();
-      // Modal already closed at the start
+      
+      // Close modal after print window is set up
+      onClose?.();
     } catch (error) {
       console.error('Print error:', error);
       alert('Error opening print dialog. Please try again.');
