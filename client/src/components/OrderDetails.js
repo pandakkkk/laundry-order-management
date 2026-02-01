@@ -15,6 +15,7 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
   const [isUpdatingRack, setIsUpdatingRack] = useState(false);
   const [selectedRack, setSelectedRack] = useState(order?.rackNumber || '');
   const [showGarmentTagModal, setShowGarmentTagModal] = useState(false);
+  const [selectedPaperSize, setSelectedPaperSize] = useState('A4'); // A4, 80mm, 58mm
 
   // Debug: Log order status to help troubleshoot
   useEffect(() => {
@@ -59,7 +60,7 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
   const handleDownloadReceipt = async () => {
     try {
       setIsGeneratingReceipt(true);
-      const blob = await api.generateReceipt(order._id);
+      const blob = await api.generateReceipt(order._id, selectedPaperSize);
       
       // Create a URL for the blob
       const url = window.URL.createObjectURL(blob);
@@ -67,7 +68,7 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
       // Create a temporary anchor element and trigger download
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Receipt-${order.ticketNumber}.pdf`;
+      link.download = `Receipt-${order.ticketNumber}-${selectedPaperSize}.pdf`;
       document.body.appendChild(link);
       link.click();
       
@@ -85,7 +86,7 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
   const handlePrintReceipt = async () => {
     try {
       setIsGeneratingReceipt(true);
-      const blob = await api.generateReceipt(order._id);
+      const blob = await api.generateReceipt(order._id, selectedPaperSize);
       
       // Create a URL for the blob
       const url = window.URL.createObjectURL(blob);
@@ -427,13 +428,27 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
           <div className="action-buttons">
             {can(PERMISSIONS.ORDER_VIEW) && (
               <>
+                <div className="paper-size-selector">
+                  <label htmlFor="paper-size" className="paper-size-label">Paper:</label>
+                  <select
+                    id="paper-size"
+                    value={selectedPaperSize}
+                    onChange={(e) => setSelectedPaperSize(e.target.value)}
+                    className="paper-size-select"
+                    title="Select paper size for receipt"
+                  >
+                    <option value="A4">A4 (Standard)</option>
+                    <option value="80mm">80mm (Thermal)</option>
+                    <option value="58mm">58mm (Thermal)</option>
+                  </select>
+                </div>
                 <button 
                   className="btn btn-primary btn-sm" 
                   onClick={handleDownloadReceipt}
                   disabled={isGeneratingReceipt}
                   title="Download Receipt as PDF"
                 >
-                  {isGeneratingReceipt ? '⏳ Generating...' : '🧾 Download Receipt'}
+                  {isGeneratingReceipt ? '⏳ Generating...' : '🧾 Download'}
                 </button>
                 <button 
                   className="btn btn-primary btn-sm" 
@@ -441,7 +456,7 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
                   disabled={isGeneratingReceipt}
                   title="Print Receipt"
                 >
-                  🖨️ Print Receipt
+                  🖨️ Print
                 </button>
               </>
             )}

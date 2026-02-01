@@ -6,6 +6,7 @@ const ReceiptModal = ({ order, onClose }) => {
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [paperSize, setPaperSize] = useState('A4'); // A4, 80mm, 58mm
 
   useEffect(() => {
     let currentUrl = null;
@@ -15,8 +16,8 @@ const ReceiptModal = ({ order, onClose }) => {
         setLoading(true);
         setError(null);
         
-        // Fetch the PDF receipt
-        const pdfBlob = await api.generateReceipt(order._id);
+        // Fetch the PDF receipt with selected paper size
+        const pdfBlob = await api.generateReceipt(order._id, paperSize);
         const url = URL.createObjectURL(pdfBlob);
         currentUrl = url;
         setPdfUrl(url);
@@ -38,7 +39,7 @@ const ReceiptModal = ({ order, onClose }) => {
         URL.revokeObjectURL(currentUrl);
       }
     };
-  }, [order?._id]);
+  }, [order?._id, paperSize]);
 
   const handleDownload = () => {
     if (pdfUrl) {
@@ -115,6 +116,19 @@ const ReceiptModal = ({ order, onClose }) => {
           </div>
           
           <div className="receipt-actions">
+            <div className="paper-size-control">
+              <label htmlFor="receipt-paper-size">Paper Size:</label>
+              <select
+                id="receipt-paper-size"
+                value={paperSize}
+                onChange={(e) => setPaperSize(e.target.value)}
+                className="paper-size-dropdown"
+              >
+                <option value="A4">A4 (Standard)</option>
+                <option value="80mm">80mm (Thermal)</option>
+                <option value="58mm">58mm (Thermal)</option>
+              </select>
+            </div>
             <button 
               className="btn btn-secondary" 
               onClick={handlePrint}

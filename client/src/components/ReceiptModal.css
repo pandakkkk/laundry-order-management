@@ -194,6 +194,47 @@
 .receipt-actions {
   display: flex;
   gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Paper Size Control */
+.paper-size-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.paper-size-control label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.paper-size-dropdown {
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: white;
+  cursor: pointer;
+  color: #374151;
+  min-width: 120px;
+}
+
+.paper-size-dropdown:hover {
+  border-color: #10b981;
+}
+
+.paper-size-dropdown:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .receipt-actions .btn {
@@ -350,6 +391,12 @@
     padding: 12px 16px;
     font-size: 0.875rem;
     min-height: 48px;
+  }
+
+  .paper-size-control {
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 4px;
   }
 }
 

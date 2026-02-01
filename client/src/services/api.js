@@ -69,8 +69,10 @@ const api = {
   },
 
   // Generate and download receipt
-  generateReceipt: async (orderId) => {
+  // paperSize can be 'A4', '80mm', or '58mm' for thermal printers
+  generateReceipt: async (orderId, paperSize = 'A4') => {
     const response = await axios.get(`${API_BASE_URL}/orders/${orderId}/receipt`, {
+      params: { paperSize },
       responseType: 'blob' // Important for PDF download
     });
     return response.data;
