@@ -615,6 +615,102 @@
   to { box-shadow: 0 0 15px rgba(34, 197, 94, 0.5); }
 }
 
+/* QC Result Section */
+.dc-modal .qc-result-section {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border-radius: 12px;
+  border: 1px solid #c4b5fd;
+}
+
+.dc-modal .qc-result-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  color: #6b21a8;
+  text-align: center;
+}
+
+.dc-modal .qc-toggle-container {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.dc-modal .qc-toggle-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.875rem 0.5rem;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.dc-modal .qc-toggle-btn.pass {
+  border-color: #bbf7d0;
+}
+
+.dc-modal .qc-toggle-btn.pass:hover {
+  border-color: #22c55e;
+  background: #f0fdf4;
+}
+
+.dc-modal .qc-toggle-btn.pass.active {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  border-color: #22c55e;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+}
+
+.dc-modal .qc-toggle-btn.fail {
+  border-color: #fed7aa;
+}
+
+.dc-modal .qc-toggle-btn.fail:hover {
+  border-color: #f97316;
+  background: #fff7ed;
+}
+
+.dc-modal .qc-toggle-btn.fail.active {
+  background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+  border-color: #f97316;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+}
+
+.dc-modal .qc-toggle-btn .qc-icon {
+  font-size: 1.5rem;
+}
+
+.dc-modal .qc-toggle-btn .qc-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.dc-modal .qc-toggle-btn.pass.active .qc-label {
+  color: #15803d;
+}
+
+.dc-modal .qc-toggle-btn.fail.active .qc-label {
+  color: #c2410c;
+}
+
+.dc-modal .qc-toggle-btn .qc-sublabel {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.dc-modal .qc-toggle-btn.pass.active .qc-sublabel {
+  color: #22c55e;
+}
+
+.dc-modal .qc-toggle-btn.fail.active .qc-sublabel {
+  color: #f97316;
+}
+
 /* Next Status Info */
 .dc-modal .next-status-info {
   display: flex;
@@ -628,15 +724,28 @@
   margin-top: 1rem;
 }
 
+.dc-modal .next-status-info.rework {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border-color: #f97316;
+}
+
 .dc-modal .next-status-info .label {
   font-size: 0.9rem;
   color: #5eead4;
+}
+
+.dc-modal .next-status-info.rework .label {
+  color: #fb923c;
 }
 
 .dc-modal .next-status-info .next-status {
   font-size: 1.1rem;
   font-weight: 700;
   color: #0891b2;
+}
+
+.dc-modal .next-status-info.rework .next-status {
+  color: #ea580c;
 }
 
 /* Modal Footer */
@@ -687,6 +796,15 @@
 .dc-modal .btn-confirm:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(8, 145, 178, 0.4);
+}
+
+.dc-modal .btn-confirm.rework {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.dc-modal .btn-confirm.rework:hover:not(:disabled) {
+  box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
 }
 
 .dc-modal .btn-confirm.disabled {

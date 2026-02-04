@@ -9,6 +9,7 @@ const DryCleanerDashboard = () => {
   const [verifiedItems, setVerifiedItems] = useState({});
   const [updateLoading, setUpdateLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('spotting'); // spotting, drycleaning, ironing, qualitycheck, packing
+  const [qcResult, setQcResult] = useState('pass'); // 'pass' or 'fail' - for quality check tab
   const [stats, setStats] = useState({
     spotting: 0,
     drycleaning: 0,
@@ -77,6 +78,7 @@ const DryCleanerDashboard = () => {
   const handleOrderSelect = (order) => {
     setSelectedOrder(order);
     setVerifiedItems({});
+    setQcResult('pass'); // Reset QC result when selecting new order
   };
 
   // Toggle item verification
@@ -103,7 +105,14 @@ const DryCleanerDashboard = () => {
   const confirmStatusUpdate = async () => {
     if (!selectedOrder || !allItemsVerified() || isViewOnly) return;
     
-    const targetStatus = getNextStatus(activeTab);
+    // Determine target status based on QC result
+    let targetStatus;
+    if (activeTab === 'qualitycheck' && qcResult === 'fail') {
+      targetStatus = 'Spotting'; // Rework - send back to spotting
+    } else {
+      targetStatus = getNextStatus(activeTab);
+    }
+    
     if (!targetStatus) return;
     
     try {
@@ -115,7 +124,9 @@ const DryCleanerDashboard = () => {
         'spotting': { dryCleanedAt: new Date(), dryCleanedBy: 'Dry Cleaner' },
         'drycleaning': { ironedAt: new Date(), ironedBy: 'Dry Cleaner' },
         'ironing': { qualityCheckedAt: new Date(), qualityCheckedBy: 'Dry Cleaner' },
-        'qualitycheck': { packedAt: new Date(), packedBy: 'Dry Cleaner' }
+        'qualitycheck': qcResult === 'pass' 
+          ? { packedAt: new Date(), packedBy: 'Dry Cleaner' }
+          : { reworkAt: new Date(), reworkBy: 'Dry Cleaner', reworkReason: 'Quality Check Failed' }
       };
       
       if (trackingFields[activeTab]) {
@@ -125,6 +136,7 @@ const DryCleanerDashboard = () => {
       fetchOrders();
       setSelectedOrder(null);
       setVerifiedItems({});
+      setQcResult('pass'); // Reset QC result
     } catch (error) {
       alert('Failed to update status: ' + error.message);
     } finally {
@@ -361,14 +373,45 @@ const DryCleanerDashboard = () => {
                 )}
               </div>
 
+              {/* QC Pass/Fail Toggle - Only for Quality Check tab */}
+              {activeTab === 'qualitycheck' && allItemsVerified() && (
+                <div className="qc-result-section">
+                  <h4>🔍 Quality Check Result</h4>
+                  <div className="qc-toggle-container">
+                    <button 
+                      className={`qc-toggle-btn pass ${qcResult === 'pass' ? 'active' : ''}`}
+                      onClick={() => setQcResult('pass')}
+                    >
+                      <span className="qc-icon">✅</span>
+                      <span className="qc-label">QC Passed</span>
+                      <span className="qc-sublabel">Move to Packing</span>
+                    </button>
+                    <button 
+                      className={`qc-toggle-btn fail ${qcResult === 'fail' ? 'active' : ''}`}
+                      onClick={() => setQcResult('fail')}
+                    >
+                      <span className="qc-icon">⚠️</span>
+                      <span className="qc-label">QC Failed</span>
+                      <span className="qc-sublabel">Rework Required</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Next Status Info - only for processing tabs */}
               {!isViewOnly && (
-                <div className="next-status-info">
+                <div className={`next-status-info ${activeTab === 'qualitycheck' && qcResult === 'fail' ? 'rework' : ''}`}>
                   <span className="label">Will move to:</span>
                   <span className="next-status">
-                    {getTabIcon(activeTab === 'spotting' ? 'drycleaning' : 
-                               activeTab === 'drycleaning' ? 'ironing' : 
-                               activeTab === 'ironing' ? 'qualitycheck' : 'packing')} {getNextStatus(activeTab)}
+                    {activeTab === 'qualitycheck' && qcResult === 'fail' ? (
+                      <>🎯 Spotting (Rework)</>
+                    ) : (
+                      <>
+                        {getTabIcon(activeTab === 'spotting' ? 'drycleaning' : 
+                                   activeTab === 'drycleaning' ? 'ironing' : 
+                                   activeTab === 'ironing' ? 'qualitycheck' : 'packing')} {getNextStatus(activeTab)}
+                      </>
+                    )}
                   </span>
                 </div>
               )}
@@ -392,7 +435,7 @@ const DryCleanerDashboard = () => {
                     Cancel
                   </button>
                   <button 
-                    className={`btn-confirm ${!allItemsVerified() ? 'disabled' : ''}`}
+                    className={`btn-confirm ${!allItemsVerified() ? 'disabled' : ''} ${activeTab === 'qualitycheck' && qcResult === 'fail' ? 'rework' : ''}`}
                     onClick={confirmStatusUpdate}
                     disabled={!allItemsVerified() || updateLoading}
                   >
@@ -401,6 +444,8 @@ const DryCleanerDashboard = () => {
                         <span className="spinner-small"></span>
                         Processing...
                       </>
+                    ) : activeTab === 'qualitycheck' && qcResult === 'fail' ? (
+                      <>🔄 Move to Spotting (Rework)</>
                     ) : (
                       <>✓ Move to {getNextStatus(activeTab)}</>
                     )}
