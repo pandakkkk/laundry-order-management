@@ -17,7 +17,7 @@ export const normalizePhoneNumber = (phone) => {
   if (!phone) return '';
   
   // Remove spaces, dashes, parentheses, etc.
-  let normalized = phone.replace(/[\s\-\(\)\.]/g, '');
+  let normalized = phone.replace(/[\s\-().]/g, '');
   
   return normalized;
 };

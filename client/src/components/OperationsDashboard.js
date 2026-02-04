@@ -39,7 +39,6 @@ const OperationsDashboard = () => {
     unreadCount,
     showPanel,
     bellShaking,
-    hasNewOrders,
     notificationPermission,
     markAsRead,
     clearAll,
