@@ -42,7 +42,6 @@ const DeliveryDashboard = () => {
   const [bellShaking, setBellShaking] = useState(false);
   const [hasNewPickups, setHasNewPickups] = useState(false);
   const previousOrderIdsRef = useRef(new Set());
-  const pollIntervalRef = useRef(null);
 
   // ========================================
   // NOTIFICATION SOUND & VIBRATION
@@ -205,25 +204,6 @@ const DeliveryDashboard = () => {
     previousOrderIdsRef.current = currentOrderIds;
   }, [playNotificationSound, sendBrowserNotification]);
 
-  // ========================================
-  // AUTO-POLLING FOR NEW ORDERS
-  // ========================================
-  useEffect(() => {
-    // Poll every 30 seconds for new orders
-    pollIntervalRef.current = setInterval(() => {
-      if (!document.hidden) {
-        fetchOrders(true); // silent fetch
-      }
-    }, 30000);
-
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Mark notification as read
   const markNotificationRead = (notificationId) => {
     setNewPickupNotifications(prev => 
@@ -284,6 +264,33 @@ const DeliveryDashboard = () => {
 
   useEffect(() => {
     fetchOrders();
+  }, [fetchOrders]);
+
+  // ========================================
+  // AUTO-POLLING FOR NEW ORDERS (every 15 seconds)
+  // ========================================
+  useEffect(() => {
+    // Poll every 15 seconds for new orders (more responsive)
+    const pollInterval = setInterval(() => {
+      if (!document.hidden) {
+        console.log('🔄 Auto-polling for new orders...');
+        fetchOrders(true); // silent fetch
+      }
+    }, 15000); // 15 seconds for faster response
+
+    // Also poll when the page becomes visible again
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('👁️ Page visible - checking for new orders...');
+        fetchOrders(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [fetchOrders]);
 
   // Filter orders based on mode

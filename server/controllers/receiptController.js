@@ -1,7 +1,12 @@
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
+const path = require('path');
+const fs = require('fs');
 const Order = require('../models/Order');
 const businessConfig = require('../config/business');
+
+// Logo path - at project root
+const LOGO_PATH = path.join(__dirname, '../../laundryman_logo.jpeg');
 
 // Paper size configurations
 const PAPER_SIZES = {
@@ -131,13 +136,23 @@ function generateThermalReceipt(doc, order, config, qrCodeImage) {
   const centerX = config.width / 2;
   const fs = config.fontSize;
 
-  // Header - Business Name
-  doc.fontSize(fs.title)
-     .font('Helvetica-Bold')
-     .text(businessConfig.name, margin, margin, { 
-       width: contentWidth, 
-       align: 'center' 
-     });
+  // Header - Logo
+  const logoWidth = config.width > 200 ? 80 : 60; // Smaller for 58mm
+  const logoHeight = logoWidth * 0.6; // Maintain aspect ratio approx
+  
+  if (fs.existsSync(LOGO_PATH)) {
+    const logoX = (config.width - logoWidth) / 2;
+    doc.image(LOGO_PATH, logoX, margin, { width: logoWidth });
+    doc.y = margin + logoHeight + 5;
+  } else {
+    // Fallback to text if logo not found
+    doc.fontSize(fs.title)
+       .font('Helvetica-Bold')
+       .text(businessConfig.name, margin, margin, { 
+         width: contentWidth, 
+         align: 'center' 
+       });
+  }
   
   doc.moveDown(0.3);
   doc.fontSize(fs.small)
@@ -246,15 +261,25 @@ function generateThermalReceipt(doc, order, config, qrCodeImage) {
 // Generate A4 receipt (original format)
 function generateA4Receipt(doc, order, config, qrCodeImage) {
   const margin = config.margin;
-  const fs = config.fontSize;
+  const fontSize = config.fontSize;
 
-  // Header Section
-  doc.fontSize(fs.title)
-     .font('Helvetica-Bold')
-     .text(businessConfig.name, { align: 'center' });
+  // Header Section - Logo
+  const logoWidth = 150; // Larger logo for A4
+  const logoHeight = logoWidth * 0.6; // Maintain aspect ratio approx
+  
+  if (fs.existsSync(LOGO_PATH)) {
+    const logoX = (config.width - logoWidth) / 2 + margin;
+    doc.image(LOGO_PATH, logoX, margin, { width: logoWidth });
+    doc.y = margin + logoHeight + 10;
+  } else {
+    // Fallback to text if logo not found
+    doc.fontSize(fontSize.title)
+       .font('Helvetica-Bold')
+       .text(businessConfig.name, { align: 'center' });
+  }
   
   doc.moveDown(0.5);
-  doc.fontSize(fs.normal)
+  doc.fontSize(fontSize.normal)
      .font('Helvetica')
      .text(businessConfig.address, { align: 'center' });
   
@@ -282,7 +307,7 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
 
   // Receipt Title
   doc.moveDown(1);
-  doc.fontSize(fs.heading)
+  doc.fontSize(fontSize.heading)
      .font('Helvetica-Bold')
      .text('RECEIPT', { align: 'center' });
 
@@ -294,7 +319,7 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
   let currentY = doc.y;
 
   // Left Column
-  doc.fontSize(fs.normal)
+  doc.fontSize(fontSize.normal)
      .font('Helvetica-Bold')
      .text('Ticket Number:', leftColumn, currentY);
   doc.font('Helvetica')
@@ -338,7 +363,7 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
      .stroke();
 
   doc.moveDown(1);
-  doc.fontSize(fs.subheading)
+  doc.fontSize(fontSize.subheading)
      .font('Helvetica-Bold')
      .text('Items:', margin, doc.y);
 
@@ -346,7 +371,7 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
 
   // Table Header
   const tableTop = doc.y;
-  doc.fontSize(fs.normal)
+  doc.fontSize(fontSize.normal)
      .font('Helvetica-Bold')
      .text('Description', margin, tableTop)
      .text('Qty', 350, tableTop)
@@ -363,7 +388,7 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
     const itemAmount = item.quantity * item.price;
     
     doc.font('Helvetica')
-       .fontSize(fs.small)
+       .fontSize(fontSize.small)
        .text(item.description, margin, itemsY, { width: 280 })
        .text(item.quantity.toString(), 350, itemsY)
        .text(item.price.toFixed(2), 400, itemsY)
@@ -386,14 +411,14 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
      .stroke();
 
   doc.moveDown(1);
-  doc.fontSize(fs.subheading)
+  doc.fontSize(fontSize.subheading)
      .font('Helvetica-Bold')
      .text('Total Amount:', 350, doc.y)
      .text(order.totalAmount.toFixed(2), 500, doc.y);
 
   // Payment Information
   doc.moveDown(1.5);
-  doc.fontSize(fs.normal)
+  doc.fontSize(fontSize.normal)
      .font('Helvetica-Bold')
      .text('Payment Information:', margin, doc.y);
 
@@ -408,7 +433,7 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
     doc.font('Helvetica-Bold')
        .text('Notes:', margin, doc.y);
     doc.font('Helvetica')
-       .fontSize(fs.small)
+       .fontSize(fontSize.small)
        .text(order.notes, margin, doc.y + 15, { width: config.lineWidth });
   }
 
@@ -418,7 +443,7 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
     doc.font('Helvetica-Bold')
        .text('Location:', margin, doc.y);
     doc.font('Helvetica')
-       .fontSize(fs.small)
+       .fontSize(fontSize.small)
        .text(order.location, margin, doc.y + 15, { width: config.lineWidth });
   }
 
@@ -426,7 +451,7 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
   if (qrCodeImage) {
     doc.moveDown(1);
     doc.image(qrCodeImage, 400, doc.y - 50, { width: config.qrSize, height: config.qrSize });
-    doc.fontSize(fs.tiny)
+    doc.fontSize(fontSize.tiny)
        .font('Helvetica')
        .text('Scan to track order', 400, doc.y + 55, { width: config.qrSize, align: 'center' });
   }
@@ -438,12 +463,12 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
      .stroke();
 
   doc.moveDown(1);
-  doc.fontSize(fs.tiny)
+  doc.fontSize(fontSize.tiny)
      .font('Helvetica')
      .text(businessConfig.terms, margin, doc.y, { width: config.lineWidth, align: 'center' });
 
   doc.moveDown(1);
-  doc.fontSize(fs.normal)
+  doc.fontSize(fontSize.normal)
      .font('Helvetica-Bold')
      .text(businessConfig.footer, { align: 'center' });
 }
