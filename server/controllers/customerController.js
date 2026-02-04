@@ -218,7 +218,6 @@ exports.searchCustomers = async (req, res) => {
     // Field-specific search
     if (field && field !== 'all') {
       const fieldMap = {
-        'customerId': 'customerId',
         'customerName': 'name',
         'phoneNumber': 'phoneNumber'
       };
@@ -232,8 +231,7 @@ exports.searchCustomers = async (req, res) => {
           $or: [
             { name: { $regex: q, $options: 'i' } },
             { phoneNumber: { $regex: q, $options: 'i' } },
-            { email: { $regex: q, $options: 'i' } },
-            { customerId: { $regex: q, $options: 'i' } }
+            { email: { $regex: q, $options: 'i' } }
           ]
         };
       }
@@ -243,8 +241,7 @@ exports.searchCustomers = async (req, res) => {
         $or: [
           { name: { $regex: q, $options: 'i' } },
           { phoneNumber: { $regex: q, $options: 'i' } },
-          { email: { $regex: q, $options: 'i' } },
-          { customerId: { $regex: q, $options: 'i' } }
+          { email: { $regex: q, $options: 'i' } }
         ]
       };
     }

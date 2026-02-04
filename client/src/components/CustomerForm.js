@@ -10,7 +10,6 @@ const CustomerForm = ({ customer, onSubmit, onClose }) => {
     city: '',
     state: '',
     pincode: '',
-    customerId: '',
     notes: '',
     status: 'Active'
   });
@@ -28,7 +27,6 @@ const CustomerForm = ({ customer, onSubmit, onClose }) => {
         city: customer.city || '',
         state: customer.state || '',
         pincode: customer.pincode || '',
-        customerId: customer.customerId || '',
         notes: customer.notes || '',
         status: customer.status || 'Active'
       });
@@ -165,18 +163,6 @@ const CustomerForm = ({ customer, onSubmit, onClose }) => {
                 {errors.email && (
                   <span className="error-message">{errors.email}</span>
                 )}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="customerId">Customer ID</label>
-                <input
-                  type="text"
-                  id="customerId"
-                  name="customerId"
-                  value={formData.customerId}
-                  onChange={handleChange}
-                  placeholder="CUST001 (optional)"
-                />
               </div>
             </div>
           </div>

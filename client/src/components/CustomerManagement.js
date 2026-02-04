@@ -302,7 +302,6 @@ const CustomerManagement = () => {
                 <th>Phone Number</th>
                 <th>Email</th>
                 <th>Address</th>
-                <th>Customer ID</th>
                 <th>Total Orders</th>
                 <th>Total Spent</th>
                 <th>Status</th>
@@ -348,13 +347,6 @@ const CustomerManagement = () => {
                         <span className="text-muted">-</span>
                       )}
                     </div>
-                  </td>
-                  <td>
-                    {customer.customerId ? (
-                      <span className="customer-id">{customer.customerId}</span>
-                    ) : (
-                      <span className="text-muted">-</span>
-                    )}
                   </td>
                   <td>
                     <span className="badge badge-info">{customer.totalOrders || 0}</span>

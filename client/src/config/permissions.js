@@ -60,7 +60,13 @@ export const PERMISSIONS = {
   
   // Notifications
   NOTIFICATION_SEND: 'notification:send',
-  NOTIFICATION_VIEW: 'notification:view'
+  NOTIFICATION_VIEW: 'notification:view',
+  
+  // Product Management
+  PRODUCT_VIEW: 'product:view',
+  PRODUCT_CREATE: 'product:create',
+  PRODUCT_UPDATE: 'product:update',
+  PRODUCT_DELETE: 'product:delete'
 };
 
 export const ROLE_DESCRIPTIONS = {

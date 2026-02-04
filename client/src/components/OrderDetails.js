@@ -195,20 +195,12 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
                   {order.status}
                 </span>
               </div>
-              <div className="detail-item">
-                <span className="detail-label">Served By:</span>
-                <span className="detail-value">{order.servedBy}</span>
-              </div>
             </div>
           </div>
 
           <div className="detail-section">
             <h3>👤 Customer Information</h3>
             <div className="detail-grid">
-              <div className="detail-item">
-                <span className="detail-label">Customer ID:</span>
-                <span className="detail-value customer-id">{order.customerId}</span>
-              </div>
               <div className="detail-item">
                 <span className="detail-label">Name:</span>
                 <span className="detail-value">{order.customerName}</span>

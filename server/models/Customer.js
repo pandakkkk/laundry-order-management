@@ -90,7 +90,6 @@ customerSchema.index({
   name: 'text', 
   phoneNumber: 'text', 
   email: 'text', 
-  customerId: 'text',
   address: 'text',
   city: 'text'
 });

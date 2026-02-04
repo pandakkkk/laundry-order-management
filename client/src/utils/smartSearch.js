@@ -9,16 +9,13 @@ const TICKET_PATTERN = /^\d{4}-\d{3}-\d{5}$|^\d{4,}-\d{2,}-\d{3,}$|^\d{10,}$/;
 // Detect phone number patterns
 const PHONE_PATTERN = /^(\+91|91)?[\s-]?[6-9]\d{9}$/;
 
-// Detect customer ID pattern: e.g., CUST001, CUST123
-const CUSTOMER_ID_PATTERN = /^CUST\d+$/i;
-
 // Detect tag number pattern: e.g., GT-0109-001, GT-1225-00012
 const TAG_NUMBER_PATTERN = /^GT-\d{4}-\d{3,5}$/i;
 
 /**
  * Detect the search type from query
  * @param {string} query - The search query
- * @returns {string} - 'ticketNumber', 'phoneNumber', 'customerId', 'tagNumber', or 'all'
+ * @returns {string} - 'ticketNumber', 'phoneNumber', 'tagNumber', or 'all'
  */
 export const detectSearchType = (query) => {
   if (!query || !query.trim()) return 'all';
@@ -28,11 +25,6 @@ export const detectSearchType = (query) => {
   // Check for tag number first (GT-MMDD-SEQ format)
   if (TAG_NUMBER_PATTERN.test(trimmed)) {
     return 'tagNumber';
-  }
-  
-  // Check for customer ID (most specific)
-  if (CUSTOMER_ID_PATTERN.test(trimmed)) {
-    return 'customerId';
   }
   
   // Check for ticket number
@@ -81,7 +73,6 @@ export const getSearchTypeLabel = (searchType) => {
     'ticketNumber': '🎫 Ticket Number',
     'tagNumber': '🏷️ Tag Number',
     'phoneNumber': '📞 Phone Number',
-    'customerId': '👤 Customer ID',
     'customerName': '📝 Customer Name',
     'all': '🔍 All Fields'
   };
@@ -115,15 +106,13 @@ export const getPlaceholder = (searchType, context = 'order') => {
       'ticketNumber': 'Enter ticket number (e.g., 2511-001-012)',
       'tagNumber': 'Enter tag number (e.g., GT-0109-001)',
       'phoneNumber': 'Enter phone number (e.g., +91 98765 43210)',
-      'customerId': 'Enter customer ID (e.g., CUST001)',
       'customerName': 'Enter customer name',
-      'all': 'Track by ticket, tag, phone, customer ID, or name...'
+      'all': 'Track by ticket, tag, phone, or name...'
     },
     customer: {
       'phoneNumber': 'Enter phone number (e.g., +91 98765 43210)',
-      'customerId': 'Enter customer ID (e.g., CUST001)',
       'customerName': 'Enter customer name',
-      'all': 'Search by phone, customer ID, or name...'
+      'all': 'Search by phone or name...'
     }
   };
   

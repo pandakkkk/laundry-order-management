@@ -66,7 +66,7 @@ const CustomerOrderHistory = ({ customer, onClose }) => {
           <div>
             <h2>📊 Customer Order History</h2>
             <p className="customer-info">
-              {customer.name} {customer.customerId && `(${customer.customerId})`}
+              {customer.name}
             </p>
             <p className="customer-phone">{customer.phoneNumber}</p>
           </div>

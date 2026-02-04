@@ -88,7 +88,7 @@ exports.generateReceipt = async (req, res) => {
     const qrCodeData = JSON.stringify({
       ticketNumber: order.ticketNumber,
       orderId: order._id.toString(),
-      customerId: order.customerId,
+      phoneNumber: order.phoneNumber,
       status: order.status
     });
 
@@ -178,9 +178,6 @@ function generateThermalReceipt(doc, order, config, qrCodeImage) {
   doc.moveDown(0.3);
   doc.text(`Customer: ${order.customerName}`, margin);
   doc.text(`Phone: ${order.phoneNumber}`, margin);
-  if (order.customerId) {
-    doc.text(`ID: ${order.customerId}`, margin);
-  }
 
   // Dashed line separator
   doc.moveDown(0.5);
@@ -197,7 +194,7 @@ function generateThermalReceipt(doc, order, config, qrCodeImage) {
   order.items.forEach((item) => {
     const itemAmount = item.quantity * item.price;
     const itemLine = `${item.quantity}x ${truncateText(item.description, config.width > 200 ? 25 : 18)}`;
-    const priceText = `₹${itemAmount.toFixed(0)}`;
+    const priceText = itemAmount.toFixed(0);
     
     const itemY = doc.y;
     doc.text(itemLine, margin, itemY, { width: contentWidth - 40 });
@@ -214,7 +211,7 @@ function generateThermalReceipt(doc, order, config, qrCodeImage) {
   doc.fontSize(fs.heading).font('Helvetica-Bold');
   const totalY = doc.y;
   doc.text('TOTAL:', margin, totalY);
-  doc.text(`₹${order.totalAmount.toFixed(2)}`, margin, totalY, { width: contentWidth, align: 'right' });
+  doc.text(order.totalAmount.toFixed(2), margin, totalY, { width: contentWidth, align: 'right' });
 
   // Payment Info
   doc.moveDown(0.5);
@@ -322,7 +319,7 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
      .text(formatDate(order.expectedDelivery), leftColumn + 100, currentY);
 
   // Right Column
-  currentY = doc.y - 60;
+  currentY = doc.y - 40;
   doc.font('Helvetica-Bold')
      .text('Customer Name:', rightColumn, currentY);
   doc.font('Helvetica')
@@ -330,21 +327,9 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
 
   currentY += 20;
   doc.font('Helvetica-Bold')
-     .text('Customer ID:', rightColumn, currentY);
-  doc.font('Helvetica')
-     .text(order.customerId, rightColumn + 100, currentY);
-
-  currentY += 20;
-  doc.font('Helvetica-Bold')
      .text('Phone:', rightColumn, currentY);
   doc.font('Helvetica')
      .text(order.phoneNumber, rightColumn + 100, currentY);
-
-  currentY += 20;
-  doc.font('Helvetica-Bold')
-     .text('Served By:', rightColumn, currentY);
-  doc.font('Helvetica')
-     .text(order.servedBy, rightColumn + 100, currentY);
 
   // Items Section
   doc.moveDown(2);
@@ -381,8 +366,8 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
        .fontSize(fs.small)
        .text(item.description, margin, itemsY, { width: 280 })
        .text(item.quantity.toString(), 350, itemsY)
-       .text(`₹${item.price.toFixed(2)}`, 400, itemsY)
-       .text(`₹${itemAmount.toFixed(2)}`, 500, itemsY);
+       .text(item.price.toFixed(2), 400, itemsY)
+       .text(itemAmount.toFixed(2), 500, itemsY);
 
     itemsY += 20;
 
@@ -404,7 +389,7 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
   doc.fontSize(fs.subheading)
      .font('Helvetica-Bold')
      .text('Total Amount:', 350, doc.y)
-     .text(`₹${order.totalAmount.toFixed(2)}`, 500, doc.y);
+     .text(order.totalAmount.toFixed(2), 500, doc.y);
 
   // Payment Information
   doc.moveDown(1.5);

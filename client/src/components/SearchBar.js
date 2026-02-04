@@ -33,7 +33,6 @@ const SearchBar = memo(({ value, onChange, placeholder, isSearching, searchField
       all: 'Search in all fields...',
       ticketNumber: 'Enter ticket number (e.g., 2510-253-00077)',
       tagNumber: 'Enter tag number (e.g., GT-0109-001)',
-      customerId: 'Enter customer ID (e.g., CUST001)',
       customerName: 'Enter customer name',
       phoneNumber: 'Enter phone number (e.g., +91 98765 43210)'
     };
@@ -53,7 +52,6 @@ const SearchBar = memo(({ value, onChange, placeholder, isSearching, searchField
           <option value="all">🔍 All Fields</option>
           <option value="ticketNumber">🎫 Ticket Number</option>
           <option value="tagNumber">🏷️ Tag Number</option>
-          <option value="customerId">👤 Customer ID</option>
           <option value="customerName">📝 Customer Name</option>
           <option value="phoneNumber">📞 Phone Number</option>
         </select>

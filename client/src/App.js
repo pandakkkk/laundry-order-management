@@ -14,6 +14,7 @@ import LinenTrackerDashboard from './components/LinenTrackerDashboard';
 import BackOfficeDashboard from './components/BackOfficeDashboard';
 import FrontdeskDashboard from './components/FrontdeskDashboard';
 import ReportsDashboard from './components/ReportsDashboard';
+import ProductManagement from './components/ProductManagement';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import ReceiptModal from './components/ReceiptModal';
@@ -238,6 +239,14 @@ function App() {
             >
               📊 Reports
             </Link>
+          )}
+          {user?.role === 'admin' && (
+            <Link 
+              to="/products" 
+              className={`nav-link ${location.pathname === '/products' ? 'active' : ''}`}
+            >
+              🏷️ Products
+            </Link>
               )}
             </>
           )}
@@ -449,6 +458,15 @@ function App() {
     </>
   );
 
+  const ProductsPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main">
+        <ProductManagement />
+      </main>
+    </>
+  );
+
   // Track Order Page - for QR code scanning
   const TrackOrderPage = () => (
     <>
@@ -538,6 +556,12 @@ function App() {
              user?.role === 'linentracker' ? <Navigate to="/linentracker" replace /> :
              user?.role === 'backoffice' ? <Navigate to="/backoffice" replace /> :
              user?.role === 'delivery' ? <Navigate to="/delivery" replace /> : <ReportsPage />}
+          </ProtectedRoute>
+        } />
+        <Route path="/products" element={
+          <ProtectedRoute>
+            {/* Admin only for product management */}
+            {user?.role === 'admin' ? <ProductsPage /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/order/:orderId" element={

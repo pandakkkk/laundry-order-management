@@ -140,7 +140,6 @@ const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSele
           <thead>
             <tr>
               <th>Ticket #</th>
-              <th>Customer ID</th>
               <th>Customer</th>
               <th>Phone</th>
               <th>Items</th>
@@ -163,7 +162,6 @@ const OrderTable = memo(({ orders, loading, pagination, currentPage, onOrderSele
                     <span className="overdue-badge">⚠️</span>
                   )}
                 </td>
-                <td className="customer-id">{order.customerId}</td>
                 <td>{order.customerName}</td>
                 <td>{order.phoneNumber}</td>
                 <td>{order.items.length} item(s)</td>

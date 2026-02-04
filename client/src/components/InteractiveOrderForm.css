@@ -767,6 +767,45 @@
   font-size: 0.95rem;
 }
 
+/* Delivery Date Section */
+.form-divider.delivery-divider {
+  height: auto;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin: 1.5rem 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-divider.delivery-divider span {
+  font-weight: 600;
+  color: #1e40af;
+  font-size: 0.95rem;
+}
+
+.delivery-date-input {
+  padding: 0.75rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s;
+  background: white;
+  cursor: pointer;
+  width: 100%;
+}
+
+.delivery-date-input:hover {
+  border-color: #3b82f6;
+}
+
+.delivery-date-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
 .payment-select {
   padding: 0.75rem 1rem;
   border: 2px solid #e5e7eb;
@@ -1283,13 +1322,19 @@
     margin: 1rem 0;
   }
   
-  .form-divider.payment-divider {
+  .form-divider.payment-divider,
+  .form-divider.delivery-divider {
     padding: 0.625rem 0.875rem;
     margin: 1rem 0 0.75rem 0;
   }
-  
-  .form-divider.payment-divider span {
+
+  .form-divider.payment-divider span,
+  .form-divider.delivery-divider span {
     font-size: 0.875rem;
+  }
+  
+  .delivery-date-input {
+    font-size: 1rem; /* 16px prevents zoom on iOS */
   }
   
   .form-row {

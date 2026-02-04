@@ -239,7 +239,7 @@ const OrderTracker = ({
           >
             <option value="ticketNumber">🎫 Ticket Number</option>
             <option value="phoneNumber">📞 Phone Number</option>
-            <option value="customerId">👤 Customer ID</option>
+            <option value="customerName">📝 Customer Name</option>
           </select>
 
           {/* Search Bar */}

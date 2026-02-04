@@ -498,7 +498,6 @@ exports.searchOrders = async (req, res) => {
     else if (field && field !== 'all') {
       const fieldMap = {
         'ticketNumber': 'ticketNumber',
-        'customerId': 'customerId',
         'customerName': 'customerName',
         'phoneNumber': 'phoneNumber'
       };
@@ -511,7 +510,6 @@ exports.searchOrders = async (req, res) => {
         searchQuery = {
           $or: [
             { ticketNumber: { $regex: q, $options: 'i' } },
-            { customerId: { $regex: q, $options: 'i' } },
             { customerName: { $regex: q, $options: 'i' } },
             { phoneNumber: { $regex: q, $options: 'i' } },
             { orderNumber: { $regex: q, $options: 'i' } }
@@ -531,7 +529,6 @@ exports.searchOrders = async (req, res) => {
       searchQuery = {
         $or: [
           ...ticketSearches,
-          { customerId: { $regex: q, $options: 'i' } },
           { customerName: { $regex: q, $options: 'i' } },
           { phoneNumber: { $regex: q, $options: 'i' } },
           { orderNumber: { $regex: q, $options: 'i' } }

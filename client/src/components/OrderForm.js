@@ -6,12 +6,10 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     ticketNumber: '',
     orderNumber: '',
-    customerId: '',
     customerName: '',
     phoneNumber: '',
     orderDate: new Date().toISOString().slice(0, 16),
     expectedDelivery: '',
-    servedBy: '',
     paymentMethod: 'Cash',
     paymentStatus: 'Pending',
     status: 'Received',
@@ -65,7 +63,6 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
         // Auto-populate customer fields
         setFormData(prev => ({
           ...prev,
-          customerId: response.data.customerId || '',
           customerName: response.data.name || '',
           location: response.data.address 
             ? `${response.data.address}${response.data.city ? ', ' + response.data.city : ''}`
@@ -98,7 +95,6 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
         setFormData(prev => ({
           ...prev,
           [name]: value,
-          customerId: '',
           customerName: '',
           location: ''
         }));
@@ -148,8 +144,6 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
 
     const orderData = {
       ...formData,
-      // If customerId is empty, it will be auto-generated from phone lookup or created as new customer
-      customerId: formData.customerId || `NEW-${formData.phoneNumber}`,
       orderDate: new Date(formData.orderDate).toISOString(),
       expectedDelivery: new Date(formData.expectedDelivery).toISOString(),
       items: items.map(item => ({
@@ -206,19 +200,6 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
               <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
                 ✨ Auto-generated (editable)
               </small>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="servedBy">Served By *</label>
-              <input
-                type="text"
-                id="servedBy"
-                name="servedBy"
-                value={formData.servedBy}
-                onChange={handleInputChange}
-                placeholder="Staff name"
-                required
-              />
             </div>
 
             <div className="form-group">
@@ -300,22 +281,6 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
                 required
                 style={{ backgroundColor: customerFound ? '#e8f5e9' : undefined }}
               />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="customerId">Customer ID</label>
-              <input
-                type="text"
-                id="customerId"
-                name="customerId"
-                value={formData.customerId}
-                onChange={handleInputChange}
-                placeholder="Auto-populated from phone"
-                style={{ backgroundColor: formData.customerId ? '#e8f5e9' : undefined }}
-              />
-              <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                ✨ Auto-populated when existing customer phone is entered
-              </small>
             </div>
 
             <div className="form-group full-width">

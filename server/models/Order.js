@@ -38,8 +38,9 @@ const orderSchema = new mongoose.Schema({
   },
   customerId: {
     type: String,
-    required: true,
-    index: true
+    required: false,
+    index: true,
+    default: ''
   },
   customerName: {
     type: String,
@@ -59,7 +60,8 @@ const orderSchema = new mongoose.Schema({
   },
   servedBy: {
     type: String,
-    required: true
+    required: false,
+    default: ''
   },
   items: [orderItemSchema],
   totalAmount: {
@@ -180,7 +182,7 @@ orderSchema.pre('save', function(next) {
 // Index for faster queries
 orderSchema.index({ status: 1, orderDate: -1 });
 orderSchema.index({ assignedTo: 1, status: 1 });
-orderSchema.index({ customerName: 'text', phoneNumber: 'text', ticketNumber: 'text', customerId: 'text' });
+orderSchema.index({ customerName: 'text', phoneNumber: 'text', ticketNumber: 'text' });
 
 const Order = mongoose.model('Order', orderSchema);
 

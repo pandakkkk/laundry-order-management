@@ -236,7 +236,6 @@ const CustomerTracker = ({
                   }}
                 >
                   <option value="phoneNumber">📞 Phone Number</option>
-                  <option value="customerId">👤 Customer ID</option>
                   <option value="customerName">📝 Customer Name</option>
                 </select>
 
@@ -345,9 +344,6 @@ const CustomerTracker = ({
                 <div className="customer-header">
                   <div className="customer-name-section">
                     <h3>{customer.name}</h3>
-                    {customer.customerId && (
-                      <span className="customer-id">{customer.customerId}</span>
-                    )}
                   </div>
                   <span className={`status-badge status-${customer.status?.toLowerCase() || 'active'}`}>
                     {customer.status || 'Active'}

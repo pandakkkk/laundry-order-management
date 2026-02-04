@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api';
 import QRScanner from './QRScanner';
 import './DeliveryDashboard.css';
@@ -31,6 +31,214 @@ const DeliveryDashboard = () => {
     toDrop: 0     // Orders to deliver to customers
   });
 
+  // ========================================
+  // NOTIFICATION SYSTEM STATE
+  // ========================================
+  const [newPickupNotifications, setNewPickupNotifications] = useState([]);
+  const [showNotificationToast, setShowNotificationToast] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState('default');
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotificationPanel, setShowNotificationPanel] = useState(false);
+  const [bellShaking, setBellShaking] = useState(false);
+  const [hasNewPickups, setHasNewPickups] = useState(false);
+  const previousOrderIdsRef = useRef(new Set());
+  const audioRef = useRef(null);
+  const pollIntervalRef = useRef(null);
+
+  // ========================================
+  // NOTIFICATION SOUND & VIBRATION
+  // ========================================
+  const playNotificationSound = useCallback(() => {
+    try {
+      // Vibrate on mobile devices (pattern: vibrate-pause-vibrate)
+      if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200, 100, 300]);
+      }
+
+      // Create a pleasant notification sound using Web Audio API
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Create oscillators for a pleasant chime
+      const playTone = (frequency, startTime, duration) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, startTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+
+      const now = audioContext.currentTime;
+      // Play a pleasant three-tone chime (like a doorbell)
+      playTone(880, now, 0.15);        // A5
+      playTone(1108.73, now + 0.15, 0.3); // C#6
+      playTone(1318.51, now + 0.3, 0.4);  // E6
+    } catch (error) {
+      console.log('Audio notification not available:', error);
+      // Still try to vibrate even if audio fails
+      if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200]);
+      }
+    }
+  }, []);
+
+  // ========================================
+  // BROWSER PUSH NOTIFICATION
+  // ========================================
+  const requestNotificationPermission = useCallback(async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      return permission;
+    }
+    return 'denied';
+  }, []);
+
+  const sendBrowserNotification = useCallback((title, body, icon = '📦') => {
+    if (notificationPermission === 'granted') {
+      try {
+        const notification = new Notification(title, {
+          body,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          vibrate: [200, 100, 200],
+          tag: 'pickup-notification',
+          requireInteraction: true,
+        });
+
+        notification.onclick = () => {
+          window.focus();
+          setActiveMode('pickup');
+          notification.close();
+        };
+
+        // Auto close after 10 seconds
+        setTimeout(() => notification.close(), 10000);
+      } catch (error) {
+        console.log('Browser notification error:', error);
+      }
+    }
+  }, [notificationPermission]);
+
+  // ========================================
+  // REQUEST PERMISSION ON MOUNT
+  // ========================================
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+      if (Notification.permission === 'default') {
+        // Request permission after a short delay
+        setTimeout(() => {
+          requestNotificationPermission();
+        }, 2000);
+      }
+    }
+  }, [requestNotificationPermission]);
+
+  // ========================================
+  // DETECT NEW ORDERS & TRIGGER NOTIFICATIONS
+  // ========================================
+  const checkForNewOrders = useCallback((newOrders) => {
+    const currentOrderIds = new Set(newOrders.map(o => o._id));
+    const previousOrderIds = previousOrderIdsRef.current;
+    
+    // Find new pickup orders
+    const newPickups = newOrders.filter(order => 
+      order.status === 'Ready for Pickup' && 
+      !previousOrderIds.has(order._id)
+    );
+
+    if (newPickups.length > 0 && previousOrderIds.size > 0) {
+      // We have new pickup orders!
+      console.log('🔔 New pickup orders detected:', newPickups.length);
+      
+      // Play sound
+      playNotificationSound();
+      
+      // Shake the bell
+      setBellShaking(true);
+      setTimeout(() => setBellShaking(false), 1000);
+      
+      // Set pulse animation on pickup button
+      setHasNewPickups(true);
+      setTimeout(() => setHasNewPickups(false), 5000);
+      
+      // Add to notifications
+      const newNotifications = newPickups.map(order => ({
+        id: order._id,
+        ticketNumber: order.ticketNumber,
+        customerName: order.customerName,
+        address: order.address,
+        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        read: false
+      }));
+      
+      setNewPickupNotifications(prev => [...newNotifications, ...prev].slice(0, 10));
+      setUnreadCount(prev => prev + newPickups.length);
+      setShowNotificationToast(true);
+      
+      // Send browser notification
+      if (newPickups.length === 1) {
+        sendBrowserNotification(
+          '🚴 New Pickup Assigned!',
+          `${newPickups[0].customerName} - ${newPickups[0].address?.slice(0, 50) || 'No address'}`,
+        );
+      } else {
+        sendBrowserNotification(
+          '🚴 New Pickups Assigned!',
+          `You have ${newPickups.length} new pickup orders waiting`,
+        );
+      }
+      
+      // Auto-hide toast after 5 seconds
+      setTimeout(() => setShowNotificationToast(false), 5000);
+    }
+
+    // Update previous order IDs
+    previousOrderIdsRef.current = currentOrderIds;
+  }, [playNotificationSound, sendBrowserNotification]);
+
+  // ========================================
+  // AUTO-POLLING FOR NEW ORDERS
+  // ========================================
+  useEffect(() => {
+    // Poll every 30 seconds for new orders
+    pollIntervalRef.current = setInterval(() => {
+      if (!document.hidden) {
+        fetchOrders(true); // silent fetch
+      }
+    }, 30000);
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Mark notification as read
+  const markNotificationRead = (notificationId) => {
+    setNewPickupNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  // Clear all notifications
+  const clearAllNotifications = () => {
+    setNewPickupNotifications([]);
+    setUnreadCount(0);
+    setShowNotificationPanel(false);
+  };
+
   // Handle scroll for sticky header shrink effect
   useEffect(() => {
     const handleScroll = () => {
@@ -41,9 +249,9 @@ const DeliveryDashboard = () => {
   }, []);
 
   // Fetch delivery orders assigned to current user
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       // Fetch only orders assigned to the current delivery person
       console.log('Fetching assigned orders...');
       const response = await api.getMyAssignedOrders();
@@ -51,6 +259,10 @@ const DeliveryDashboard = () => {
       
       if (response.success) {
         console.log('Orders received:', response.data?.length || 0);
+        
+        // Check for new orders before updating state
+        checkForNewOrders(response.data);
+        
         setOrders(response.data);
         
         // Calculate stats - only orders pending action
@@ -66,9 +278,9 @@ const DeliveryDashboard = () => {
       console.error('Error fetching orders:', error);
       console.error('Error details:', error.response?.data || error.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, []);
+  }, [checkForNewOrders]);
 
   useEffect(() => {
     fetchOrders();
@@ -372,25 +584,55 @@ const DeliveryDashboard = () => {
 
   return (
     <div className="delivery-dashboard">
+      {/* Notification Toast */}
+      {showNotificationToast && newPickupNotifications.length > 0 && (
+        <div className="notification-toast" onClick={() => {
+          setShowNotificationToast(false);
+          setActiveMode('pickup');
+        }}>
+          <div className="toast-icon">🚴</div>
+          <div className="toast-content">
+            <div className="toast-title">New Pickup Assigned!</div>
+            <div className="toast-body">
+              {newPickupNotifications[0]?.customerName} - {newPickupNotifications[0]?.ticketNumber}
+            </div>
+          </div>
+          <button className="toast-close" onClick={(e) => {
+            e.stopPropagation();
+            setShowNotificationToast(false);
+          }}>✕</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className={`delivery-header ${isScrolled ? 'scrolled' : ''}`}>
         <div className="delivery-header-top">
           <h1>🚴 Delivery Boy</h1>
           <div className="header-actions">
+            {/* Notification Bell */}
+            <button 
+              className={`btn-notification ${bellShaking ? 'shaking' : ''} ${unreadCount > 0 ? 'has-notifications' : ''}`}
+              onClick={() => setShowNotificationPanel(!showNotificationPanel)}
+            >
+              <span className="bell-icon">🔔</span>
+              {unreadCount > 0 && (
+                <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
             <button className="btn-scan" onClick={() => setShowScanner(true)}>📷</button>
-          <button className="btn-refresh" onClick={fetchOrders}>🔄</button>
+            <button className="btn-refresh" onClick={() => fetchOrders(false)}>🔄</button>
           </div>
         </div>
 
         {/* Main Mode Toggle - PICKUP vs DROP */}
         <div className="mode-toggle">
           <button 
-            className={`mode-btn pickup ${activeMode === 'pickup' ? 'active' : ''}`}
+            className={`mode-btn pickup ${activeMode === 'pickup' ? 'active' : ''} ${hasNewPickups ? 'pulse-new' : ''}`}
             onClick={() => handleModeChange('pickup')}
           >
             <span className="mode-icon">📥</span>
             <span className="mode-text">TO PICK</span>
-            <span className="mode-count">{stats.toPickup}</span>
+            <span className={`mode-count ${hasNewPickups ? 'bounce' : ''}`}>{stats.toPickup}</span>
           </button>
           <button 
             className={`mode-btn drop ${activeMode === 'drop' ? 'active' : ''}`}
@@ -403,6 +645,63 @@ const DeliveryDashboard = () => {
         </div>
 
       </div>
+
+      {/* Notification Panel */}
+      {showNotificationPanel && (
+        <div className="notification-panel-overlay" onClick={() => setShowNotificationPanel(false)}>
+          <div className="notification-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="notification-panel-header">
+              <h3>🔔 Notifications</h3>
+              {newPickupNotifications.length > 0 && (
+                <button className="btn-clear-all" onClick={clearAllNotifications}>
+                  Clear All
+                </button>
+              )}
+            </div>
+            <div className="notification-list">
+              {newPickupNotifications.length === 0 ? (
+                <div className="no-notifications">
+                  <span className="empty-bell">🔕</span>
+                  <p>No new notifications</p>
+                </div>
+              ) : (
+                newPickupNotifications.map((notification) => (
+                  <div 
+                    key={notification.id} 
+                    className={`notification-item ${notification.read ? 'read' : 'unread'}`}
+                    onClick={() => {
+                      markNotificationRead(notification.id);
+                      setActiveMode('pickup');
+                      setShowNotificationPanel(false);
+                    }}
+                  >
+                    <div className="notification-icon">📦</div>
+                    <div className="notification-content">
+                      <div className="notification-title">
+                        New Pickup: {notification.ticketNumber}
+                      </div>
+                      <div className="notification-body">
+                        {notification.customerName}
+                      </div>
+                      <div className="notification-address">
+                        📍 {notification.address?.slice(0, 40) || 'No address'}...
+                      </div>
+                      <div className="notification-time">{notification.time}</div>
+                    </div>
+                    {!notification.read && <div className="unread-dot"></div>}
+                  </div>
+                ))
+              )}
+            </div>
+            {notificationPermission !== 'granted' && (
+              <div className="notification-permission-banner">
+                <span>🔔 Enable notifications to never miss a pickup!</span>
+                <button onClick={requestNotificationPermission}>Enable</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Mode Info Banner */}
       <div className={`mode-banner ${activeMode}`}>
