@@ -1,12 +1,7 @@
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
-const path = require('path');
-const fs = require('fs');
 const Order = require('../models/Order');
 const businessConfig = require('../config/business');
-
-// Logo path - at project root
-const LOGO_PATH = path.join(__dirname, '../../laundryman_logo.jpeg');
 
 // Paper size configurations
 const PAPER_SIZES = {
@@ -136,23 +131,13 @@ function generateThermalReceipt(doc, order, config, qrCodeImage) {
   const centerX = config.width / 2;
   const fs = config.fontSize;
 
-  // Header - Logo
-  const logoWidth = config.width > 200 ? 80 : 60; // Smaller for 58mm
-  const logoHeight = logoWidth * 0.6; // Maintain aspect ratio approx
-  
-  if (fs.existsSync(LOGO_PATH)) {
-    const logoX = (config.width - logoWidth) / 2;
-    doc.image(LOGO_PATH, logoX, margin, { width: logoWidth });
-    doc.y = margin + logoHeight + 5;
-  } else {
-    // Fallback to text if logo not found
-    doc.fontSize(fs.title)
-       .font('Helvetica-Bold')
-       .text(businessConfig.name, margin, margin, { 
-         width: contentWidth, 
-         align: 'center' 
-       });
-  }
+  // Header - Bold Text
+  doc.fontSize(fs.title)
+     .font('Helvetica-Bold')
+     .text('LAUNDRYMAN', margin, margin, { 
+       width: contentWidth, 
+       align: 'center' 
+     });
   
   doc.moveDown(0.3);
   doc.fontSize(fs.small)
@@ -263,20 +248,10 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
   const margin = config.margin;
   const fontSize = config.fontSize;
 
-  // Header Section - Logo
-  const logoWidth = 150; // Larger logo for A4
-  const logoHeight = logoWidth * 0.6; // Maintain aspect ratio approx
-  
-  if (fs.existsSync(LOGO_PATH)) {
-    const logoX = (config.width - logoWidth) / 2 + margin;
-    doc.image(LOGO_PATH, logoX, margin, { width: logoWidth });
-    doc.y = margin + logoHeight + 10;
-  } else {
-    // Fallback to text if logo not found
-    doc.fontSize(fontSize.title)
-       .font('Helvetica-Bold')
-       .text(businessConfig.name, { align: 'center' });
-  }
+  // Header Section - Bold Text
+  doc.fontSize(fontSize.title)
+     .font('Helvetica-Bold')
+     .text('LAUNDRYMAN', { align: 'center' });
   
   doc.moveDown(0.5);
   doc.fontSize(fontSize.normal)
