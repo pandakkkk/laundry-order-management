@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
+import useOrderNotifications from '../hooks/useOrderNotifications';
+import NotificationBell from './NotificationBell';
 import './DryCleanerDashboard.css';
+import './NotificationStyles.css';
 
 const DryCleanerDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -16,6 +19,41 @@ const DryCleanerDashboard = () => {
     ironing: 0,
     qualitycheck: 0,
     packing: 0
+  });
+
+  // ========================================
+  // NOTIFICATION SYSTEM
+  // ========================================
+  const notificationFetch = useCallback(async () => {
+    try {
+      // Fetch Spotting orders (first stage in dry cleaner workflow)
+      const response = await api.getOrders({ status: 'Spotting', limit: 100 });
+      return response.data || [];
+    } catch (error) {
+      console.error('Notification fetch error:', error);
+      return [];
+    }
+  }, []);
+
+  const {
+    notifications,
+    showToast,
+    latestNotification,
+    unreadCount,
+    showPanel,
+    bellShaking,
+    hasNewOrders,
+    notificationPermission,
+    markAsRead,
+    clearAll,
+    dismissToast,
+    togglePanel,
+    requestNotificationPermission
+  } = useOrderNotifications({
+    fetchOrders: notificationFetch,
+    dashboardName: 'Dry Cleaner',
+    pollInterval: 15000,
+    notificationIcon: '👔'
   });
 
   // Map tab names to actual status values
@@ -189,13 +227,42 @@ const DryCleanerDashboard = () => {
 
   return (
     <div className="drycleaner-dashboard">
+      {/* Notification Bell Component */}
+      <NotificationBell
+        notifications={notifications}
+        showToast={showToast}
+        latestNotification={latestNotification}
+        unreadCount={unreadCount}
+        showPanel={showPanel}
+        bellShaking={bellShaking}
+        notificationPermission={notificationPermission}
+        onTogglePanel={togglePanel}
+        onDismissToast={dismissToast}
+        onMarkAsRead={markAsRead}
+        onClearAll={clearAll}
+        onRequestPermission={requestNotificationPermission}
+        dashboardIcon="👔"
+        toastTitle="New Order for Dry Cleaning!"
+      />
+
       {/* Header */}
       <div className="dc-header">
         <div className="dc-header-top">
           <h1>🫧 Dry Cleaner Dashboard</h1>
-          <button className="btn-refresh" onClick={fetchOrders}>
-            🔄
-          </button>
+          <div className="dc-header-actions">
+            <button
+              className={`btn-notification ${bellShaking ? 'shaking' : ''} ${unreadCount > 0 ? 'has-notifications' : ''}`}
+              onClick={togglePanel}
+            >
+              <span className="bell-icon">🔔</span>
+              {unreadCount > 0 && (
+                <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
+            <button className="btn-refresh" onClick={fetchOrders}>
+              🔄
+            </button>
+          </div>
         </div>
         
         {/* Stats Cards / Tabs */}
@@ -203,11 +270,11 @@ const DryCleanerDashboard = () => {
           {['spotting', 'drycleaning', 'ironing', 'qualitycheck', 'packing'].map((tab, index, arr) => (
             <React.Fragment key={tab}>
               <div 
-                className={`dc-stat-card ${tab} ${activeTab === tab ? 'active' : ''}`}
+                className={`dc-stat-card ${tab} ${activeTab === tab ? 'active' : ''} ${tab === 'spotting' && hasNewOrders ? 'tab-pulse-new' : ''}`}
                 onClick={() => setActiveTab(tab)}
               >
                 <span className="stat-icon">{getTabIcon(tab)}</span>
-                <span className="stat-value">{stats[tab]}</span>
+                <span className={`stat-value ${tab === 'spotting' && hasNewOrders ? 'count-bounce' : ''}`}>{stats[tab]}</span>
                 <span className="stat-label">{getTabLabel(tab)}</span>
               </div>
               {index < arr.length - 1 && <div className="dc-flow-arrow">→</div>}

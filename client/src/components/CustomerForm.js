@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './CustomerForm.css';
+import { validateIndianPhone, formatPhoneOnType, getPhoneHelperText, extractPhoneDigits } from '../utils/phoneValidation';
 
 const CustomerForm = ({ customer, onSubmit, onClose }) => {
   const [formData, setFormData] = useState({
@@ -35,24 +36,46 @@ const CustomerForm = ({ customer, onSubmit, onClose }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear error when user types
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+    
+    // Format phone number as user types
+    if (name === 'phoneNumber') {
+      const formattedPhone = formatPhoneOnType(value);
+      setFormData(prev => ({
+        ...prev,
+        [name]: formattedPhone
+      }));
+      
+      // Real-time validation
+      const digits = extractPhoneDigits(formattedPhone);
+      if (digits.length > 0) {
+        const { isValid, error } = validateIndianPhone(formattedPhone);
+        if (!isValid) {
+          setErrors(prev => ({ ...prev, phoneNumber: error }));
+        } else {
+          setErrors(prev => ({ ...prev, phoneNumber: '' }));
+        }
+      } else {
+        setErrors(prev => ({ ...prev, phoneNumber: '' }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+      // Clear error when user types
+      if (errors[name]) {
+        setErrors(prev => ({ ...prev, [name]: '' }));
+      }
     }
   };
 
   const validate = () => {
     const newErrors = {};
 
-    // Phone number is required
-    if (!formData.phoneNumber.trim()) {
-      newErrors.phoneNumber = 'Phone number is required';
-    } else if (!/^[0-9+\-\s()]+$/.test(formData.phoneNumber)) {
-      newErrors.phoneNumber = 'Invalid phone number format';
+    // Phone number validation using utility
+    const { isValid, error } = validateIndianPhone(formData.phoneNumber);
+    if (!isValid) {
+      newErrors.phoneNumber = error;
     }
 
     // Name is required
@@ -117,12 +140,19 @@ const CustomerForm = ({ customer, onSubmit, onClose }) => {
                   name="phoneNumber"
                   value={formData.phoneNumber}
                   onChange={handleChange}
-                  placeholder="+91 XXXXXXXXXX"
+                  placeholder="+91 XXXXX XXXXX"
+                  maxLength={16}
                   className={errors.phoneNumber ? 'error' : ''}
                   disabled={!!customer} // Phone number can't be changed
+                  style={{
+                    backgroundColor: errors.phoneNumber ? '#ffebee' : undefined,
+                    borderColor: errors.phoneNumber ? '#f44336' : undefined
+                  }}
                 />
-                {errors.phoneNumber && (
-                  <span className="error-message">{errors.phoneNumber}</span>
+                {errors.phoneNumber ? (
+                  <span className="error-message">⚠️ {errors.phoneNumber}</span>
+                ) : !customer && (
+                  <small className="help-text">{getPhoneHelperText(formData.phoneNumber)}</small>
                 )}
                 {customer && (
                   <small className="help-text">Phone number cannot be changed</small>

@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
+import useOrderNotifications from '../hooks/useOrderNotifications';
+import NotificationBell from './NotificationBell';
 import './FrontdeskDashboard.css';
+import './NotificationStyles.css';
 
 const FrontdeskDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -16,6 +19,48 @@ const FrontdeskDashboard = () => {
   });
   const [deliveryPersonnel, setDeliveryPersonnel] = useState([]);
   const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState('');
+
+  // ========================================
+  // NOTIFICATION SYSTEM
+  // ========================================
+  const notificationFetch = useCallback(async () => {
+    try {
+      // Fetch new orders (Received status, unassigned) and returns
+      const [receivedRes, returnRes] = await Promise.all([
+        api.getOrders({ status: 'Received', limit: 100 }),
+        api.getOrders({ status: 'Return', limit: 100 })
+      ]);
+      
+      const newOrders = (receivedRes.data || []).filter(o => !o.assignedTo);
+      const returns = (returnRes.data || []).filter(o => !o.assignedTo);
+      
+      return [...newOrders, ...returns];
+    } catch (error) {
+      console.error('Notification fetch error:', error);
+      return [];
+    }
+  }, []);
+
+  const {
+    notifications,
+    showToast,
+    latestNotification,
+    unreadCount,
+    showPanel,
+    bellShaking,
+    hasNewOrders,
+    notificationPermission,
+    markAsRead,
+    clearAll,
+    dismissToast,
+    togglePanel,
+    requestNotificationPermission
+  } = useOrderNotifications({
+    fetchOrders: notificationFetch,
+    dashboardName: 'Frontdesk',
+    pollInterval: 15000,
+    notificationIcon: '🎫'
+  });
 
   // Map tab names to actual status values
   const tabToStatus = {
@@ -198,10 +243,39 @@ const FrontdeskDashboard = () => {
 
   return (
     <div className="frontdesk-dashboard">
+      {/* Notification Bell Component */}
+      <NotificationBell
+        notifications={notifications}
+        showToast={showToast}
+        latestNotification={latestNotification}
+        unreadCount={unreadCount}
+        showPanel={showPanel}
+        bellShaking={bellShaking}
+        notificationPermission={notificationPermission}
+        onTogglePanel={togglePanel}
+        onDismissToast={dismissToast}
+        onMarkAsRead={markAsRead}
+        onClearAll={clearAll}
+        onRequestPermission={requestNotificationPermission}
+        dashboardIcon="🎫"
+        toastTitle="New Order at Frontdesk!"
+      />
+
       {/* Header with Stats */}
       <div className="fd-header">
         <div className="fd-title">
-          <h1>🎫 Frontdesk Dashboard</h1>
+          <div className="fd-title-row">
+            <h1>🎫 Frontdesk Dashboard</h1>
+            <button
+              className={`btn-notification header-bell ${bellShaking ? 'shaking' : ''} ${unreadCount > 0 ? 'has-notifications' : ''}`}
+              onClick={togglePanel}
+            >
+              <span className="bell-icon">🔔</span>
+              {unreadCount > 0 && (
+                <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
+          </div>
           <p>New Order → Assign Pickup → In Workshop</p>
         </div>
 
@@ -210,11 +284,11 @@ const FrontdeskDashboard = () => {
           {['neworders', 'assigned', 'pickedup'].map((tab, index, arr) => (
             <React.Fragment key={tab}>
               <div 
-                className={`fd-stat-card ${tab} ${activeTab === tab ? 'active' : ''}`}
+                className={`fd-stat-card ${tab} ${activeTab === tab ? 'active' : ''} ${tab === 'neworders' && hasNewOrders ? 'tab-pulse-new' : ''}`}
                 onClick={() => setActiveTab(tab)}
               >
                 <span className="stat-icon">{getTabIcon(tab)}</span>
-                <span className="stat-value">{stats[tab]}</span>
+                <span className={`stat-value ${tab === 'neworders' && hasNewOrders ? 'count-bounce' : ''}`}>{stats[tab]}</span>
                 <span className="stat-label">{getTabLabel(tab)}</span>
               </div>
               {index < arr.length - 1 && <div className="fd-flow-arrow">→</div>}
@@ -223,11 +297,11 @@ const FrontdeskDashboard = () => {
           {/* Returns tab - separate flow */}
           <div className="fd-flow-separator">|</div>
           <div 
-            className={`fd-stat-card returns ${activeTab === 'returns' ? 'active' : ''}`}
+            className={`fd-stat-card returns ${activeTab === 'returns' ? 'active' : ''} ${hasNewOrders ? 'tab-pulse-new' : ''}`}
             onClick={() => setActiveTab('returns')}
           >
             <span className="stat-icon">↩️</span>
-            <span className="stat-value">{stats.returns}</span>
+            <span className={`stat-value ${hasNewOrders ? 'count-bounce' : ''}`}>{stats.returns}</span>
             <span className="stat-label">RETURNS</span>
           </div>
         </div>

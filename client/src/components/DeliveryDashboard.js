@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api';
 import QRScanner from './QRScanner';
 import './DeliveryDashboard.css';
+import { validateIndianPhone, formatPhoneOnType, extractPhoneDigits } from '../utils/phoneValidation';
 
 const DeliveryDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -26,6 +27,7 @@ const DeliveryDashboard = () => {
     notes: '',
     paymentCollected: false
   });
+  const [receiverPhoneError, setReceiverPhoneError] = useState('');
   const [stats, setStats] = useState({
     toPickup: 0,  // Orders to collect from customers
     toDrop: 0     // Orders to deliver to customers
@@ -368,6 +370,16 @@ const DeliveryDashboard = () => {
       return;
     }
 
+    // Validate receiver phone if provided
+    if (deliveryForm.receivedBy === 'other' && deliveryForm.receiverPhone) {
+      const { isValid, error } = validateIndianPhone(deliveryForm.receiverPhone);
+      if (!isValid) {
+        setReceiverPhoneError(error);
+        alert(`Invalid receiver phone: ${error}`);
+        return;
+      }
+    }
+
     // Check COD payment collection
     const isCOD = selectedOrder.paymentStatus !== 'Paid';
     if (isCOD && !deliveryForm.paymentCollected) {
@@ -401,6 +413,7 @@ const DeliveryDashboard = () => {
       setShowDeliveryForm(false);
       setSelectedOrder(null);
       setDeliveryForm({ receivedBy: 'self', receiverName: '', receiverPhone: '', notes: '', paymentCollected: false });
+      setReceiverPhoneError('');
       fetchOrders();
     } catch (error) {
       alert('Failed to complete delivery');
@@ -909,7 +922,7 @@ const DeliveryDashboard = () => {
           <div className="delivery-modal confirmation">
             <div className="modal-header confirm">
               <h2>✅ Confirm Delivery</h2>
-              <button className="btn-close" onClick={() => setShowDeliveryForm(false)}>✕</button>
+              <button className="btn-close" onClick={() => { setShowDeliveryForm(false); setReceiverPhoneError(''); }}>✕</button>
             </div>
 
             <div className="modal-body">
@@ -992,10 +1005,32 @@ const DeliveryDashboard = () => {
                       <label>Receiver Phone</label>
                       <input
                         type="tel"
-                        placeholder="Enter phone"
+                        placeholder="+91 XXXXX XXXXX"
+                        maxLength={16}
                         value={deliveryForm.receiverPhone}
-                        onChange={(e) => setDeliveryForm({...deliveryForm, receiverPhone: e.target.value})}
+                        onChange={(e) => {
+                          const formattedPhone = formatPhoneOnType(e.target.value);
+                          setDeliveryForm({...deliveryForm, receiverPhone: formattedPhone});
+                          
+                          // Validate if phone has digits
+                          const digits = extractPhoneDigits(formattedPhone);
+                          if (digits.length > 0) {
+                            const { isValid, error } = validateIndianPhone(formattedPhone);
+                            setReceiverPhoneError(isValid ? '' : error);
+                          } else {
+                            setReceiverPhoneError('');
+                          }
+                        }}
+                        style={{
+                          borderColor: receiverPhoneError ? '#f44336' : undefined,
+                          backgroundColor: receiverPhoneError ? '#ffebee' : undefined
+                        }}
                       />
+                      {receiverPhoneError && (
+                        <small style={{ color: '#f44336', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                          ⚠️ {receiverPhoneError}
+                        </small>
+                      )}
                     </div>
                   </>
                 )}
@@ -1013,7 +1048,7 @@ const DeliveryDashboard = () => {
             </div>
 
             <div className="modal-footer">
-              <button className="btn-cancel" onClick={() => setShowDeliveryForm(false)}>Cancel</button>
+              <button className="btn-cancel" onClick={() => { setShowDeliveryForm(false); setReceiverPhoneError(''); }}>Cancel</button>
               <button className="btn-submit" onClick={handleDeliveryComplete}>✅ Confirm Delivery</button>
             </div>
           </div>

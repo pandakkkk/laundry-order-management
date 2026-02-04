@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
+import useOrderNotifications from '../hooks/useOrderNotifications';
+import NotificationBell from './NotificationBell';
 import './OperationsDashboard.css';
+import './NotificationStyles.css';
 
 const OperationsDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -13,6 +16,41 @@ const OperationsDashboard = () => {
     readyforprocessing: 0,
     sorting: 0,
     spotting: 0
+  });
+
+  // ========================================
+  // NOTIFICATION SYSTEM
+  // ========================================
+  const notificationFetch = useCallback(async () => {
+    try {
+      // Fetch Ready for Processing orders (main entry point for Operations)
+      const response = await api.getOrders({ status: 'Ready for Processing', limit: 100 });
+      return response.data || [];
+    } catch (error) {
+      console.error('Notification fetch error:', error);
+      return [];
+    }
+  }, []);
+
+  const {
+    notifications,
+    showToast,
+    latestNotification,
+    unreadCount,
+    showPanel,
+    bellShaking,
+    hasNewOrders,
+    notificationPermission,
+    markAsRead,
+    clearAll,
+    dismissToast,
+    togglePanel,
+    requestNotificationPermission
+  } = useOrderNotifications({
+    fetchOrders: notificationFetch,
+    dashboardName: 'Operations',
+    pollInterval: 15000,
+    notificationIcon: '⚙️'
   });
 
   // Fetch orders based on active tab
@@ -146,13 +184,42 @@ const OperationsDashboard = () => {
 
   return (
     <div className="operations-dashboard">
+      {/* Notification Bell Component */}
+      <NotificationBell
+        notifications={notifications}
+        showToast={showToast}
+        latestNotification={latestNotification}
+        unreadCount={unreadCount}
+        showPanel={showPanel}
+        bellShaking={bellShaking}
+        notificationPermission={notificationPermission}
+        onTogglePanel={togglePanel}
+        onDismissToast={dismissToast}
+        onMarkAsRead={markAsRead}
+        onClearAll={clearAll}
+        onRequestPermission={requestNotificationPermission}
+        dashboardIcon="⚙️"
+        toastTitle="New Order for Processing!"
+      />
+
       {/* Header */}
       <div className="ops-header">
         <div className="ops-header-top">
           <h1>🏭 Operations Dashboard</h1>
-          <button className="btn-refresh" onClick={fetchOrders}>
-            🔄
-          </button>
+          <div className="ops-header-actions">
+            <button
+              className={`btn-notification ${bellShaking ? 'shaking' : ''} ${unreadCount > 0 ? 'has-notifications' : ''}`}
+              onClick={togglePanel}
+            >
+              <span className="bell-icon">🔔</span>
+              {unreadCount > 0 && (
+                <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
+            <button className="btn-refresh" onClick={fetchOrders}>
+              🔄
+            </button>
+          </div>
         </div>
         
         {/* Stats Cards / Tabs */}

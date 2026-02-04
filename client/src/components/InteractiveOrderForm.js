@@ -4,6 +4,7 @@ import { PRODUCT_CATEGORIES, PRODUCTS as STATIC_PRODUCTS, calculateItemPrice } f
 import ProductOptionsModal from './ProductOptionsModal';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { validateIndianPhone, formatPhoneOnType, getPhoneHelperText, extractPhoneDigits } from '../utils/phoneValidation';
 
 const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   const { user } = useAuth();
@@ -59,6 +60,8 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   const [sendSMSReceipt, setSendSMSReceipt] = useState(false);
   const [isLoadingNumbers, setIsLoadingNumbers] = useState(false);
   const [customerFound, setCustomerFound] = useState(null);
+  const [phoneError, setPhoneError] = useState('');
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
   // Fetch products from API
   const fetchProducts = useCallback(async () => {
@@ -253,27 +256,42 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   // Handle customer info change
   const handleCustomerInfoChange = async (e) => {
     const { name, value } = e.target;
-    setCustomerInfo(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
+    
     // Auto-search and auto-populate when phone number is typed
     if (name === 'phoneNumber') {
+      // Format phone number as user types
+      const formattedPhone = formatPhoneOnType(value);
+      
+      setCustomerInfo(prev => ({
+        ...prev,
+        [name]: formattedPhone
+      }));
+      
+      // Validate phone number
+      const digits = extractPhoneDigits(formattedPhone);
+      if (digits.length > 0) {
+        setPhoneTouched(true);
+        const { isValid, error } = validateIndianPhone(formattedPhone);
+        setPhoneError(isValid ? '' : error);
+      } else {
+        setPhoneError('');
+        setPhoneTouched(false);
+      }
+      
       // Clear customer found state when phone changes
-      if (customerFound && value !== customerFound.phoneNumber) {
+      if (customerFound && formattedPhone !== customerFound.phoneNumber) {
         setCustomerFound(null);
       }
       
-      if (value.length >= 10) {
+      if (digits.length >= 10) {
         // Try exact match lookup for auto-populate
-        lookupCustomerByPhone(value);
+        lookupCustomerByPhone(digits);
       }
       
-      if (value.length >= 3) {
+      if (digits.length >= 3) {
         try {
           setSearchingCustomer(true);
-          const response = await api.searchCustomersByPhone(value);
+          const response = await api.searchCustomersByPhone(digits);
           setCustomerSearchResults(response.data);
           setShowCustomerSearch(response.data.length > 0);
         } catch (error) {
@@ -286,6 +304,11 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
         setCustomerSearchResults([]);
         setShowCustomerSearch(false);
       }
+    } else {
+      setCustomerInfo(prev => ({
+        ...prev,
+        [name]: value
+      }));
     }
   };
 
@@ -300,6 +323,8 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     setCustomerFound(customer);
     setShowCustomerSearch(false);
     setCustomerSearchResults([]);
+    setPhoneError('');
+    setPhoneTouched(false);
   };
 
   // Load all customers when form opens
@@ -353,6 +378,8 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     setCustomerSearchQuery(`${customer.name} - ${customer.phoneNumber}`);
     setShowCustomerDropdown(false);
     setCustomerFound(customer);
+    setPhoneError('');
+    setPhoneTouched(false);
     
     setCustomerInfo(prev => ({
       ...prev,
@@ -368,6 +395,8 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     setCustomerSearchQuery('');
     setFilteredCustomers(allCustomers);
     setCustomerFound(null);
+    setPhoneError('');
+    setPhoneTouched(false);
     setCustomerInfo(prev => ({
       ...prev,
       phoneNumber: '',
@@ -397,6 +426,15 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     // Validation - ticketNumber and orderNumber are optional (auto-generated)
     if (!customerInfo.customerName || !customerInfo.phoneNumber) {
       alert('Please fill in customer name and phone number');
+      return;
+    }
+
+    // Validate phone number
+    const { isValid, error } = validateIndianPhone(customerInfo.phoneNumber);
+    if (!isValid) {
+      setPhoneError(error);
+      setPhoneTouched(true);
+      alert(`Invalid phone number: ${error}`);
       return;
     }
 
@@ -808,9 +846,15 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
                       name="phoneNumber"
                       value={customerInfo.phoneNumber}
                       onChange={handleCustomerInfoChange}
-                      placeholder="+91 XXXXXXXXXX"
+                      onBlur={() => setPhoneTouched(true)}
+                      placeholder="+91 XXXXX XXXXX"
                       required
-                      style={{ backgroundColor: customerFound ? '#e8f5e9' : undefined }}
+                      maxLength={16}
+                      className={phoneTouched && phoneError ? 'error' : ''}
+                      style={{ 
+                        backgroundColor: customerFound ? '#e8f5e9' : (phoneTouched && phoneError ? '#ffebee' : undefined),
+                        borderColor: phoneTouched && phoneError ? '#f44336' : undefined
+                      }}
                     />
                     {searchingCustomer && (
                       <div className="search-indicator">Searching...</div>
@@ -838,11 +882,15 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
                       </div>
                     )}
                   </div>
-                  <small style={{ color: customerFound ? '#2e7d32' : 'var(--text-secondary)', fontSize: '0.7rem' }}>
-                    {customerFound 
-                      ? 'Customer Name auto-filled from existing record'
-                      : 'Enter phone to auto-lookup existing customer'}
-                  </small>
+                  {phoneTouched && phoneError ? (
+                    <small style={{ color: '#f44336', fontSize: '0.7rem' }}>
+                      ⚠️ {phoneError}
+                    </small>
+                  ) : (
+                    <small style={{ color: customerFound ? '#2e7d32' : 'var(--text-secondary)', fontSize: '0.7rem' }}>
+                      {getPhoneHelperText(customerInfo.phoneNumber, customerFound)}
+                    </small>
+                  )}
                 </div>
               </div>
 

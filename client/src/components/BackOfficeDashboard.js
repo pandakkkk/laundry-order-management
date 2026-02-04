@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import GarmentTagPrint from './GarmentTagPrint';
+import useOrderNotifications from '../hooks/useOrderNotifications';
+import NotificationBell from './NotificationBell';
 import './BackOfficeDashboard.css';
+import './NotificationStyles.css';
 
 const BackOfficeDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -16,6 +19,41 @@ const BackOfficeDashboard = () => {
   });
   const [showTagPrint, setShowTagPrint] = useState(false);
   const [tagPrintOrder, setTagPrintOrder] = useState(null);
+
+  // ========================================
+  // NOTIFICATION SYSTEM
+  // ========================================
+  const notificationFetch = useCallback(async () => {
+    try {
+      // Fetch Received in Workshop orders (main entry point for Back Office)
+      const response = await api.getOrders({ status: 'Received in Workshop', limit: 100 });
+      return response.data || [];
+    } catch (error) {
+      console.error('Notification fetch error:', error);
+      return [];
+    }
+  }, []);
+
+  const {
+    notifications,
+    showToast,
+    latestNotification,
+    unreadCount,
+    showPanel,
+    bellShaking,
+    hasNewOrders,
+    notificationPermission,
+    markAsRead,
+    clearAll,
+    dismissToast,
+    togglePanel,
+    requestNotificationPermission
+  } = useOrderNotifications({
+    fetchOrders: notificationFetch,
+    dashboardName: 'Back Office',
+    pollInterval: 15000,
+    notificationIcon: '🏢'
+  });
 
   // Map tab names to actual status values
   const tabToStatus = {
@@ -155,10 +193,39 @@ const BackOfficeDashboard = () => {
 
   return (
     <div className="backoffice-dashboard">
+      {/* Notification Bell Component */}
+      <NotificationBell
+        notifications={notifications}
+        showToast={showToast}
+        latestNotification={latestNotification}
+        unreadCount={unreadCount}
+        showPanel={showPanel}
+        bellShaking={bellShaking}
+        notificationPermission={notificationPermission}
+        onTogglePanel={togglePanel}
+        onDismissToast={dismissToast}
+        onMarkAsRead={markAsRead}
+        onClearAll={clearAll}
+        onRequestPermission={requestNotificationPermission}
+        dashboardIcon="🏢"
+        toastTitle="New Order in Workshop!"
+      />
+
       {/* Header with Stats */}
       <div className="bo-header">
         <div className="bo-title">
-          <h1>🏢 Back Office Dashboard</h1>
+          <div className="bo-title-row">
+            <h1>🏢 Back Office Dashboard</h1>
+            <button
+              className={`btn-notification header-bell ${bellShaking ? 'shaking' : ''} ${unreadCount > 0 ? 'has-notifications' : ''}`}
+              onClick={togglePanel}
+            >
+              <span className="bell-icon">🔔</span>
+              {unreadCount > 0 && (
+                <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
+          </div>
           <p>In Workshop → Tagging → Ready for Processing</p>
         </div>
 
@@ -167,11 +234,11 @@ const BackOfficeDashboard = () => {
           {['received', 'tagging', 'readyforprocessing'].map((tab, index, arr) => (
             <React.Fragment key={tab}>
               <div 
-                className={`bo-stat-card ${tab} ${activeTab === tab ? 'active' : ''}`}
+                className={`bo-stat-card ${tab} ${activeTab === tab ? 'active' : ''} ${tab === 'received' && hasNewOrders ? 'tab-pulse-new' : ''}`}
                 onClick={() => setActiveTab(tab)}
               >
                 <span className="stat-icon">{getTabIcon(tab)}</span>
-                <span className="stat-value">{stats[tab]}</span>
+                <span className={`stat-value ${tab === 'received' && hasNewOrders ? 'count-bounce' : ''}`}>{stats[tab]}</span>
                 <span className="stat-label">{getTabLabel(tab)}</span>
               </div>
               {index < arr.length - 1 && <div className="bo-flow-arrow">→</div>}
