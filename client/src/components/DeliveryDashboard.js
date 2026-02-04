@@ -42,7 +42,6 @@ const DeliveryDashboard = () => {
   const [bellShaking, setBellShaking] = useState(false);
   const [hasNewPickups, setHasNewPickups] = useState(false);
   const previousOrderIdsRef = useRef(new Set());
-  const audioRef = useRef(null);
   const pollIntervalRef = useRef(null);
 
   // ========================================
@@ -222,6 +221,7 @@ const DeliveryDashboard = () => {
         clearInterval(pollIntervalRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Mark notification as read
