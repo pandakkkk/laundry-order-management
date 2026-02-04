@@ -1,6 +1,6 @@
-import React, { useState, memo, useRef, useEffect } from 'react';
+import React, { useState, memo, useRef, useEffect, useCallback } from 'react';
 import './InteractiveOrderForm.css';
-import { PRODUCT_CATEGORIES, getProductsByCategory, calculateItemPrice } from '../data/productCatalog';
+import { PRODUCT_CATEGORIES, PRODUCTS as STATIC_PRODUCTS, calculateItemPrice } from '../data/productCatalog';
 import ProductOptionsModal from './ProductOptionsModal';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +16,14 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [editingPriceId, setEditingPriceId] = useState(null);
+  
+  // Product management state
+  const [products, setProducts] = useState(STATIC_PRODUCTS);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [showPriceEditModal, setShowPriceEditModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editingBasePrice, setEditingBasePrice] = useState('');
+  const [savingPrice, setSavingPrice] = useState(false);
   
   const [customerInfo, setCustomerInfo] = useState({
     ticketNumber: '',
@@ -44,6 +52,80 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   const [sendSMSReceipt, setSendSMSReceipt] = useState(false);
   const [isLoadingNumbers, setIsLoadingNumbers] = useState(false);
   const [customerFound, setCustomerFound] = useState(null);
+
+  // Fetch products from API
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoadingProducts(true);
+      const response = await api.getProducts();
+      if (response.success && response.data.length > 0) {
+        // Map API products to the format expected by the component
+        const apiProducts = response.data.map(p => ({
+          id: p.productId,
+          name: p.name,
+          category: p.category,
+          basePrice: p.basePrice,
+          hasOptions: p.hasOptions,
+          options: p.options
+        }));
+        setProducts(apiProducts);
+      }
+    } catch (error) {
+      console.error('Error fetching products, using static data:', error);
+      // Fall back to static products
+      setProducts(STATIC_PRODUCTS);
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, []);
+
+  // Load products on mount
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Handle opening price edit modal
+  const handleEditProductPrice = (e, product) => {
+    e.stopPropagation(); // Prevent adding to cart
+    setEditingProduct(product);
+    setEditingBasePrice(product.basePrice.toString());
+    setShowPriceEditModal(true);
+  };
+
+  // Handle saving product price
+  const handleSaveProductPrice = async () => {
+    if (!editingProduct) return;
+    
+    const newPrice = parseFloat(editingBasePrice);
+    if (isNaN(newPrice)) {
+      alert('Please enter a valid price');
+      return;
+    }
+
+    try {
+      setSavingPrice(true);
+      const response = await api.updateProductPrice(editingProduct.id, newPrice);
+      
+      if (response.success) {
+        // Update local products state
+        setProducts(prevProducts => 
+          prevProducts.map(p => 
+            p.id === editingProduct.id ? { ...p, basePrice: newPrice } : p
+          )
+        );
+        setShowPriceEditModal(false);
+        setEditingProduct(null);
+        setEditingBasePrice('');
+      } else {
+        alert('Failed to update price: ' + (response.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating product price:', error);
+      alert('Failed to update price. Please try again.');
+    } finally {
+      setSavingPrice(false);
+    }
+  };
 
   // Fetch next ticket and order numbers when customer form opens
   const fetchNextOrderNumbers = async () => {
@@ -354,7 +436,8 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     onSubmit(orderData);
   };
 
-  const categoryProducts = getProductsByCategory(selectedCategory);
+  // Get products filtered by category
+  const categoryProducts = products.filter(product => product.category === selectedCategory);
 
   return (
     <div className="interactive-order-container">
@@ -486,22 +569,35 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
 
           {/* Product Grid */}
           <div className="product-grid">
-            {categoryProducts.map(product => (
-              <button
-                key={product.id}
-                className="product-card"
-                onClick={() => handleProductClick(product)}
-              >
-                <div className="product-name">{product.name}</div>
-                <div className="product-price">
-                  {product.basePrice < 0 ? (
-                    <span className="discount-price">₹{product.basePrice.toFixed(2)}</span>
-                  ) : (
-                    <span>₹{product.basePrice.toFixed(2)}</span>
+            {loadingProducts ? (
+              <div className="loading-products">Loading products...</div>
+            ) : (
+              categoryProducts.map(product => (
+                <div
+                  key={product.id}
+                  className="product-card"
+                  onClick={() => handleProductClick(product)}
+                >
+                  {canEditPrice && (
+                    <button
+                      className="product-edit-price-btn"
+                      onClick={(e) => handleEditProductPrice(e, product)}
+                      title="Edit Price"
+                    >
+                      ⋮
+                    </button>
                   )}
+                  <div className="product-name">{product.name}</div>
+                  <div className="product-price">
+                    {product.basePrice < 0 ? (
+                      <span className="discount-price">₹{product.basePrice.toFixed(2)}</span>
+                    ) : (
+                      <span>₹{product.basePrice.toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
-              </button>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -516,6 +612,62 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
             setSelectedProduct(null);
           }}
         />
+      )}
+
+      {/* Product Price Edit Modal (Admin Only) */}
+      {showPriceEditModal && editingProduct && (
+        <div className="modal-overlay" onClick={() => setShowPriceEditModal(false)}>
+          <div className="modal-content price-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>✏️ Edit Product Price</h3>
+              <button className="btn-close" onClick={() => setShowPriceEditModal(false)}>✕</button>
+            </div>
+            <div className="price-edit-form">
+              <div className="price-edit-product-info">
+                <span className="price-edit-product-name">{editingProduct.name}</span>
+                <span className="price-edit-product-category">
+                  {PRODUCT_CATEGORIES.find(c => c.id === editingProduct.category)?.name || editingProduct.category}
+                </span>
+              </div>
+              
+              <div className="price-edit-field">
+                <label htmlFor="basePrice">Base Price (₹)</label>
+                <div className="price-input-wrapper">
+                  <span className="currency-symbol">₹</span>
+                  <input
+                    type="number"
+                    id="basePrice"
+                    value={editingBasePrice}
+                    onChange={(e) => setEditingBasePrice(e.target.value)}
+                    placeholder="Enter price"
+                    step="0.01"
+                    autoFocus
+                  />
+                </div>
+                <small className="price-edit-hint">
+                  Current price: ₹{editingProduct.basePrice.toFixed(2)}
+                </small>
+              </div>
+
+              <div className="price-edit-actions">
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowPriceEditModal(false)}
+                  disabled={savingPrice}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="btn btn-success" 
+                  onClick={handleSaveProductPrice}
+                  disabled={savingPrice}
+                >
+                  {savingPrice ? 'Saving...' : '✓ Save Price'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Customer Information Modal */}

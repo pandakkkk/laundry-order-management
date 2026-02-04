@@ -369,6 +369,48 @@
   flex-direction: column;
   justify-content: center;
   gap: 0.5rem;
+  position: relative;
+}
+
+/* Edit Price Button on Product Card */
+.product-edit-price-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(79, 70, 229, 0.1);
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #4F46E5;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s;
+  z-index: 5;
+}
+
+.product-card:hover .product-edit-price-btn {
+  opacity: 1;
+}
+
+.product-edit-price-btn:hover {
+  background: #4F46E5;
+  color: white;
+  transform: scale(1.1);
+}
+
+/* Loading Products */
+.loading-products {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+  font-size: 1rem;
 }
 
 .product-card:hover {
@@ -422,6 +464,103 @@
 
 .customer-form-modal {
   width: 600px;
+}
+
+/* Price Edit Modal */
+.price-edit-modal {
+  width: 400px;
+  max-width: 95vw;
+}
+
+.price-edit-form {
+  padding: 1.5rem;
+}
+
+.price-edit-product-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 0.5rem;
+  border-left: 4px solid #4F46E5;
+}
+
+.price-edit-product-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.price-edit-product-category {
+  font-size: 0.875rem;
+  color: #64748b;
+  text-transform: capitalize;
+}
+
+.price-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.price-edit-field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.price-input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.price-input-wrapper:focus-within {
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.price-input-wrapper .currency-symbol {
+  background: #f3f4f6;
+  padding: 0.875rem 1rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #10b981;
+  border-right: 1px solid #e5e7eb;
+}
+
+.price-input-wrapper input {
+  flex: 1;
+  border: none;
+  padding: 0.875rem 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  outline: none;
+  background: white;
+}
+
+.price-input-wrapper input::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.price-edit-hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.price-edit-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
 }
 
 .modal-header {
@@ -1217,6 +1356,40 @@
     max-width: 95%;
     max-height: 90vh;
     max-height: 90dvh;
+  }
+  
+  /* Price Edit Modal - Mobile */
+  .price-edit-modal {
+    width: 95%;
+    max-width: 95%;
+    border-radius: 1rem;
+  }
+  
+  .price-edit-form {
+    padding: 1rem;
+  }
+  
+  .price-edit-product-info {
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  
+  .price-edit-product-name {
+    font-size: 1.125rem;
+  }
+  
+  .price-input-wrapper input {
+    font-size: 1rem;
+    padding: 0.75rem;
+  }
+  
+  .price-input-wrapper .currency-symbol {
+    padding: 0.75rem;
+  }
+  
+  /* Show edit button always on mobile (no hover) */
+  .product-edit-price-btn {
+    opacity: 0.7;
   }
 }
 

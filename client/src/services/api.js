@@ -357,6 +357,60 @@ const api = {
   unassignOrder: async (orderId) => {
     const response = await axios.patch(`${API_BASE_URL}/orders/${orderId}/unassign`);
     return response.data;
+  },
+
+  // ============================================
+  // Product Management APIs
+  // ============================================
+
+  // Get all products
+  getProducts: async (params = {}) => {
+    const response = await axios.get(`${API_BASE_URL}/products`, { params });
+    return response.data;
+  },
+
+  // Get single product
+  getProduct: async (productId) => {
+    const response = await axios.get(`${API_BASE_URL}/products/${productId}`);
+    return response.data;
+  },
+
+  // Update product price (admin/manager only)
+  updateProductPrice: async (productId, basePrice, options = null) => {
+    const data = { basePrice };
+    if (options) data.options = options;
+    const response = await axios.patch(`${API_BASE_URL}/products/${productId}/price`, data);
+    return response.data;
+  },
+
+  // Update entire product (admin/manager only)
+  updateProduct: async (productId, productData) => {
+    const response = await axios.put(`${API_BASE_URL}/products/${productId}`, productData);
+    return response.data;
+  },
+
+  // Create new product (admin/manager only)
+  createProduct: async (productData) => {
+    const response = await axios.post(`${API_BASE_URL}/products`, productData);
+    return response.data;
+  },
+
+  // Delete product (admin only)
+  deleteProduct: async (productId) => {
+    const response = await axios.delete(`${API_BASE_URL}/products/${productId}`);
+    return response.data;
+  },
+
+  // Bulk update prices (admin/manager only)
+  bulkUpdateProductPrices: async (updates) => {
+    const response = await axios.post(`${API_BASE_URL}/products/bulk/update-prices`, { updates });
+    return response.data;
+  },
+
+  // Reset products to default prices (admin only)
+  resetProductsToDefaults: async () => {
+    const response = await axios.post(`${API_BASE_URL}/products/reset-defaults`);
+    return response.data;
   }
 };
 

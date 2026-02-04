@@ -234,15 +234,10 @@ exports.createOrder = async (req, res) => {
   try {
     const orderData = { ...req.body };
     
-    // Auto-generate ticketNumber if not provided or empty
-    if (!orderData.ticketNumber || orderData.ticketNumber.trim() === '') {
-      orderData.ticketNumber = await generateTicketNumber();
-    }
-    
-    // Auto-generate orderNumber if not provided or empty
-    if (!orderData.orderNumber || orderData.orderNumber.trim() === '') {
-      orderData.orderNumber = await generateOrderNumber();
-    }
+    // ALWAYS auto-generate ticketNumber and orderNumber to ensure proper sequencing
+    // The preview numbers shown in the form are just for display purposes
+    orderData.ticketNumber = await generateTicketNumber();
+    orderData.orderNumber = await generateOrderNumber();
     
     const order = await Order.create(orderData);
     
