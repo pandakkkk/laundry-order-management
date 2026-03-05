@@ -5,7 +5,7 @@ import './OrderQRView.css';
 
 // All possible order statuses in workflow order
 const ORDER_STATUSES = [
-  'Received',
+  'Booking Confirmed',
   'Sorting',
   'Spotting', 
   'Washing',
@@ -102,7 +102,7 @@ const OrderQRView = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      'Received': '#3b82f6',
+      'Booking Confirmed': '#3b82f6',
       'Processing': '#f59e0b',
       'Washing': '#06b6d4',
       'Drying': '#8b5cf6',
@@ -118,7 +118,7 @@ const OrderQRView = () => {
 
   const getStatusIcon = (status) => {
     const icons = {
-      'Received': '📥',
+      'Booking Confirmed': '✅',
       'Processing': '⚙️',
       'Washing': '🧼',
       'Drying': '💨',

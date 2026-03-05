@@ -56,7 +56,7 @@ const orderSchema = new mongoose.Schema({
   },
   expectedDelivery: {
     type: Date,
-    required: true
+    required: false
   },
   servedBy: {
     type: String,
@@ -81,7 +81,7 @@ const orderSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
-      'Received',           // Order just created (legacy/initial)
+      'Booking Confirmed',   // Order just created
       'Received in Workshop', // Order physically received at workshop after pickup
       'Tag Printed',        // Garment tags printed/attached
       'Ready for Processing', // Tagged and ready for operations to process
@@ -102,7 +102,7 @@ const orderSchema = new mongoose.Schema({
       'Refund',
       'Cancelled'
     ],
-    default: 'Received'
+    default: 'Booking Confirmed'
   },
   location: {
     type: String,
@@ -131,6 +131,11 @@ const orderSchema = new mongoose.Schema({
   notes: {
     type: String,
     default: ''
+  },
+  source: {
+    type: String,
+    enum: ['store', 'website'],
+    default: 'store'
   },
   // Delivery assignment fields
   assignedTo: {

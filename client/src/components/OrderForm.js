@@ -9,11 +9,10 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
     orderNumber: '',
     customerName: '',
     phoneNumber: '',
-    orderDate: new Date().toISOString().slice(0, 16),
-    expectedDelivery: '',
+    orderDate: (() => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); })(),
     paymentMethod: 'Cash',
     paymentStatus: 'Pending',
-    status: 'Received',
+    status: 'Booking Confirmed',
     location: '',
     notes: ''
   });
@@ -177,7 +176,6 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
     const orderData = {
       ...formData,
       orderDate: new Date(formData.orderDate).toISOString(),
-      expectedDelivery: new Date(formData.expectedDelivery).toISOString(),
       items: items.map(item => ({
         description: item.description,
         quantity: item.quantity,
@@ -242,7 +240,7 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
                 value={formData.status}
                 onChange={handleInputChange}
               >
-                <option value="Received">📥 Received</option>
+                <option value="Booking Confirmed">✅ Booking Confirmed</option>
                 <option value="Sorting">📦 Sorting</option>
                 <option value="Spotting">🔍 Spotting</option>
                 <option value="Washing">🧼 Washing</option>
@@ -351,17 +349,6 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="expectedDelivery">Expected Delivery *</label>
-              <input
-                type="datetime-local"
-                id="expectedDelivery"
-                name="expectedDelivery"
-                value={formData.expectedDelivery}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
           </div>
         </div>
 

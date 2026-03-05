@@ -12,11 +12,11 @@ const StatsCards = memo(({ stats, onFilterChange, currentFilter }) => {
       filter: ''
     },
     {
-      title: 'Received',
+      title: 'Booking Confirmed',
       value: stats.receivedOrders,
-      icon: '📥',
+      icon: '✅',
       color: 'purple',
-      filter: 'Received'
+      filter: 'Booking Confirmed'
     },
     {
       title: 'In Workshop',

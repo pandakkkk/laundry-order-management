@@ -38,7 +38,7 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
 
   const getStatusClass = (status) => {
     const statusClasses = {
-      'Received': 'status-received',
+      'Booking Confirmed': 'status-received',
       'Sorting': 'status-sorting',
       'Spotting': 'status-spotting',
       'Washing': 'status-washing',
@@ -260,7 +260,7 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
               </div>
               <div className="detail-item">
                 <span className="detail-label">Expected Delivery:</span>
-                <span className="detail-value">{formatDate(order.expectedDelivery)}</span>
+                <span className="detail-value">{order.expectedDelivery ? formatDate(order.expectedDelivery) : 'Will be shared via WhatsApp'}</span>
               </div>
               <div className="detail-item">
                 <span className="detail-label">Last Updated:</span>
@@ -398,7 +398,7 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
                 onChange={(e) => onStatusUpdate(order._id, e.target.value)}
                 className="status-select-large"
               >
-              <option value="Received">📥 Received</option>
+              <option value="Booking Confirmed">✅ Booking Confirmed</option>
               <option value="Sorting">📦 Sorting</option>
               <option value="Spotting">🔍 Spotting</option>
               <option value="Washing">🧼 Washing</option>

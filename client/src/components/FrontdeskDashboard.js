@@ -27,7 +27,7 @@ const FrontdeskDashboard = () => {
     try {
       // Fetch new orders (Received status, unassigned) and returns
       const [receivedRes, returnRes] = await Promise.all([
-        api.getOrders({ status: 'Received', limit: 100 }),
+        api.getOrders({ status: 'Booking Confirmed', limit: 100 }),
         api.getOrders({ status: 'Return', limit: 100 })
       ]);
       
@@ -64,7 +64,7 @@ const FrontdeskDashboard = () => {
 
   // Map tab names to actual status values
   const tabToStatus = {
-    'neworders': 'Received',              // Newly created orders (need pickup assignment)
+    'neworders': 'Booking Confirmed',      // Newly created orders (need pickup assignment)
     'assigned': 'Ready for Pickup',       // Assigned to delivery boy for pickup
     'pickedup': 'Received in Workshop',   // Picked up and at workshop (moved to back office)
     'returns': 'Return'                   // Return orders from Operations (need delivery assignment)
@@ -105,7 +105,7 @@ const FrontdeskDashboard = () => {
       
       // Fetch stats
       const statsResponse = await api.getOrderStats();
-      const allReceivedResponse = await api.getOrders({ status: 'Received', limit: 500 });
+      const allReceivedResponse = await api.getOrders({ status: 'Booking Confirmed', limit: 500 });
       const allReadyForPickupResponse = await api.getOrders({ status: 'Ready for Pickup', limit: 500 });
       const allReturnResponse = await api.getOrders({ status: 'Return', limit: 500 });
       
@@ -202,7 +202,7 @@ const FrontdeskDashboard = () => {
   // Get status color
   const getStatusColor = (status) => {
     const colors = {
-      'Received': '#3b82f6',
+      'Booking Confirmed': '#3b82f6',
       'Ready for Pickup': '#f59e0b',
       'Received in Workshop': '#10b981',
       'Return': '#f97316'

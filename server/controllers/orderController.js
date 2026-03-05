@@ -375,7 +375,7 @@ exports.getOrderStats = async (req, res) => {
     const totalOrders = await Order.countDocuments();
     
     // Count by each status
-    const receivedOrders = await Order.countDocuments({ status: 'Received' });
+    const receivedOrders = await Order.countDocuments({ status: 'Booking Confirmed' });
     const receivedInWorkshopOrders = await Order.countDocuments({ status: 'Received in Workshop' });
     const tagPrintedOrders = await Order.countDocuments({ status: 'Tag Printed' });
     const readyForProcessingOrders = await Order.countDocuments({ status: 'Ready for Processing' });

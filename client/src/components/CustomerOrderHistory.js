@@ -51,7 +51,7 @@ const CustomerOrderHistory = ({ customer, onClose }) => {
 
   const getStatusClass = (status) => {
     const statusClasses = {
-      'Received': 'status-received',
+      'Booking Confirmed': 'status-received',
       'Delivered': 'status-delivered',
       'Ready for Pickup': 'status-ready',
       'Cancelled': 'status-cancelled'

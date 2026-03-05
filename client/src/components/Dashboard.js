@@ -34,7 +34,7 @@ const Dashboard = memo(({
             className="filter-select"
           >
             <option value="">All Status</option>
-            <option value="Received">📥 Received</option>
+            <option value="Booking Confirmed">✅ Booking Confirmed</option>
             <option value="Sorting">📦 Sorting</option>
             <option value="Spotting">🔍 Spotting</option>
             <option value="Washing">🧼 Washing</option>
