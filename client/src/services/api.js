@@ -344,6 +344,18 @@ const api = {
     return response.data;
   },
 
+  // Get managers (for B2B order assignment)
+  getManagers: async () => {
+    const response = await axios.get(`${API_BASE_URL}/orders/managers`);
+    return response.data;
+  },
+
+  // Get staff (for B2B assignment by manager)
+  getStaff: async () => {
+    const response = await axios.get(`${API_BASE_URL}/orders/staff`);
+    return response.data;
+  },
+
   // Assign order to delivery person
   assignOrder: async (orderId, userId, userName) => {
     const response = await axios.patch(`${API_BASE_URL}/orders/${orderId}/assign`, { 

@@ -24,6 +24,7 @@
     "list-users": "node scripts/list-cloud-users.js",
     "reset-password": "node scripts/reset-password.js",
     "seed-cloud": "node scripts/seed-cloud-fresh.js",
+    "seed-b2b": "node scripts/seed-b2b-products.js",
     "setup-delivery": "node scripts/setup-delivery-orders.js"
   },
   "keywords": [

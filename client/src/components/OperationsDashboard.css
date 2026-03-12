@@ -51,6 +51,133 @@
   transform: rotate(180deg);
 }
 
+/* Mode Switcher */
+.ops-mode-switcher {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ops-mode-btn {
+  padding: 0.65rem 1.5rem;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ops-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.ops-mode-btn.active {
+  background: white;
+  color: #5b21b6;
+  border-color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.b2b-tag {
+  background: #7c3aed;
+  color: white;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.7em;
+  margin-right: 0.25rem;
+}
+
+.staff-badge {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-left: 0.5rem;
+}
+
+/* B2B Assign to Staff section */
+.b2b-assign-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.b2b-assign-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+}
+
+.assign-hint {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0 0 1rem 0;
+}
+
+.staff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.staff-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.staff-option:hover {
+  border-color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.staff-option.selected {
+  border-color: #7c3aed;
+  background: #ede9fe;
+}
+
+.staff-icon {
+  font-size: 1.25rem;
+}
+
+.no-staff-msg {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.assign-staff-btn {
+  background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+
+.assign-staff-btn:hover:not(:disabled) {
+  opacity: 0.95;
+}
+
+.assign-staff-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Stats Cards */
 .ops-stats {
   display: flex;

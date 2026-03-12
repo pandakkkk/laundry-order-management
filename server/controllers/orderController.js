@@ -81,10 +81,31 @@ exports.getAllOrders = async (req, res) => {
       page = 1,
       limit = 20,
       inProcess,
-      today
+      today,
+      orderType,
+      assignedTo
     } = req.query;
     
     let query = {};
+    
+    // Filter by assigned to current user (for manager's B2B section)
+    if (assignedTo === 'me' && req.user) {
+      const mongoose = require('mongoose');
+      query.assignedTo = new mongoose.Types.ObjectId(req.user._id.toString());
+    }
+    
+    // Filter by assigned to staff (for staff's B2B orders)
+    if (req.query.assignedToStaff === 'me' && req.user) {
+      const mongoose = require('mongoose');
+      query.assignedToStaff = new mongoose.Types.ObjectId(req.user._id.toString());
+    }
+    
+    // Filter by order type (retail vs b2b)
+    if (orderType === 'b2b') {
+      query.orderType = 'b2b';
+    } else if (orderType === 'retail') {
+      query.$or = [{ orderType: 'retail' }, { orderType: { $exists: false } }];
+    }
     
     // Handle special "In Process" filter
     if (inProcess === 'true') {
@@ -668,6 +689,48 @@ exports.getDeliveryPersonnel = async (req, res) => {
     res.json({
       success: true,
       data: deliveryUsers
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Get staff (for B2B order assignment by manager)
+exports.getStaff = async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const staffUsers = await User.find({ 
+      role: { $in: ['staff', 'drycleaner', 'backoffice'] },
+      isActive: true
+    }).select('_id name email role isActive');
+    
+    res.json({
+      success: true,
+      data: staffUsers
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Get managers (for B2B order assignment)
+exports.getManagers = async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const managers = await User.find({ 
+      role: { $in: ['manager', 'admin'] },
+      isActive: true
+    }).select('_id name email role isActive');
+    
+    res.json({
+      success: true,
+      data: managers
     });
   } catch (error) {
     res.status(500).json({

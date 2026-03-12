@@ -2,20 +2,27 @@ import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import useOrderNotifications from '../hooks/useOrderNotifications';
 import NotificationBell from './NotificationBell';
+import { useAuth } from '../context/AuthContext';
 import './OperationsDashboard.css';
 import './NotificationStyles.css';
 
 const OperationsDashboard = () => {
+  const { user } = useAuth();
+  const isStaff = user?.role === 'staff';
+  const [operationMode, setOperationMode] = useState(isStaff ? 'b2b' : 'operations'); // 'operations' | 'b2b'
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [verifiedItems, setVerifiedItems] = useState({});
   const [updateLoading, setUpdateLoading] = useState(false);
+  const [staff, setStaff] = useState([]);
+  const [selectedStaff, setSelectedStaff] = useState('');
   const [activeTab, setActiveTab] = useState('readyforprocessing'); // readyforprocessing, sorting, or spotting
   const [stats, setStats] = useState({
     readyforprocessing: 0,
     sorting: 0,
-    spotting: 0
+    spotting: 0,
+    b2b: 0
   });
 
   // ========================================
@@ -52,46 +59,97 @@ const OperationsDashboard = () => {
     notificationIcon: '⚙️'
   });
 
-  // Fetch orders based on active tab
+  // Fetch orders based on active tab and operation mode
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const statusMap = {
-        'readyforprocessing': 'Ready for Processing',
-        'sorting': 'Sorting',
-        'spotting': 'Spotting'
-      };
-      const status = statusMap[activeTab];
-      const response = await api.getOrders({ status, limit: 100 });
-      if (response.success) {
-        setOrders(response.data || []);
-      }
       
-      // Always fetch stats
-      const statsResponse = await api.getOrderStats();
-      if (statsResponse.success) {
-        setStats({
-          readyforprocessing: statsResponse.data.readyForProcessingOrders || 0,
-          sorting: statsResponse.data.sortingOrders || 0,
-          spotting: statsResponse.data.spottingOrders || 0
-        });
+      if (operationMode === 'b2b') {
+        // Manager: assignedTo=me | Staff: assignedToStaff=me
+        const statuses = 'Received in Workshop,Ready for Processing,Sorting,Spotting,Washing,Dry Cleaning,Drying,Ironing,Quality Check,Packing';
+        const params = { status: statuses, limit: 100, orderType: 'b2b' };
+        if (isStaff) params.assignedToStaff = 'me';
+        else params.assignedTo = 'me';
+        const response = await api.getOrders(params);
+        if (response.success) {
+          setOrders(response.data || []);
+        }
+        const countParams = { status: statuses, limit: 500, orderType: 'b2b' };
+        if (isStaff) countParams.assignedToStaff = 'me';
+        else countParams.assignedTo = 'me';
+        const countRes = await api.getOrders(countParams);
+        setStats(prev => ({
+          ...prev,
+          b2b: (countRes.data || []).length
+        }));
+      } else {
+        const statusMap = {
+          'readyforprocessing': 'Ready for Processing',
+          'sorting': 'Sorting',
+          'spotting': 'Spotting'
+        };
+        const status = statusMap[activeTab];
+        const response = await api.getOrders({ status, limit: 100 });
+        if (response.success) {
+          setOrders(response.data || []);
+        }
+        
+        const statsResponse = await api.getOrderStats();
+        if (statsResponse.success) {
+          const statuses = 'Received in Workshop,Ready for Processing,Sorting,Spotting,Washing,Dry Cleaning,Drying,Ironing,Quality Check,Packing';
+          const assignedRes = await api.getOrders({ status: statuses, limit: 500, assignedTo: 'me', orderType: 'b2b' });
+          setStats(prev => ({
+            ...prev,
+            readyforprocessing: statsResponse.data.readyForProcessingOrders || 0,
+            sorting: statsResponse.data.sortingOrders || 0,
+            spotting: statsResponse.data.spottingOrders || 0,
+            b2b: (assignedRes.data || []).length
+          }));
+        }
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, operationMode, isStaff]);
+
+  // Fetch staff for B2B assignment
+  const fetchStaff = useCallback(async () => {
+    try {
+      const response = await api.getStaff();
+      if (response.success) setStaff(response.data || []);
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+    }
+  }, []);
 
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+    if (operationMode === 'b2b' && !isStaff) fetchStaff();
+  }, [fetchOrders, operationMode, fetchStaff, isStaff]);
 
   // Handle order selection
   const handleOrderSelect = (order) => {
     setSelectedOrder(order);
     setVerifiedItems({});
+    setSelectedStaff(order.assignedToStaff || '');
   };
+
+  // Get effective tab for modal (when in B2B mode, derive from order status)
+  const getEffectiveTab = () => {
+    if (!selectedOrder) return activeTab;
+    if (operationMode === 'b2b') {
+      const s = selectedOrder.status;
+      if (s === 'Ready for Processing') return 'readyforprocessing';
+      if (s === 'Sorting') return 'sorting';
+      if (s === 'Spotting') return 'spotting';
+      if (['Received in Workshop', 'Tag Printed'].includes(s)) return 'received';
+      return 'spotting'; // view-only for other statuses
+    }
+    return activeTab;
+  };
+  const effectiveTab = getEffectiveTab();
 
   // Toggle item verification
   const toggleItemVerified = (index) => {
@@ -112,9 +170,9 @@ const OperationsDashboard = () => {
     return Object.values(verifiedItems).filter(Boolean).length;
   };
 
-  // Get target status based on current tab
+  // Get target status based on current tab (use effectiveTab for modal)
   const getTargetStatus = () => {
-    return activeTab === 'readyforprocessing' ? 'Sorting' : 'Spotting';
+    return effectiveTab === 'readyforprocessing' ? 'Sorting' : 'Spotting';
   };
 
   // Confirm status update
@@ -128,7 +186,7 @@ const OperationsDashboard = () => {
       await api.updateOrderStatus(selectedOrder._id, targetStatus);
       
       // Update tracking fields based on stage
-      const updateData = activeTab === 'received' 
+      const updateData = effectiveTab === 'readyforprocessing' || effectiveTab === 'received'
         ? { sortedAt: new Date(), sortedBy: 'Operations Manager' }
         : { spottedAt: new Date(), spottedBy: 'Operations Manager' };
       
@@ -138,6 +196,31 @@ const OperationsDashboard = () => {
       setVerifiedItems({});
     } catch (error) {
       alert('Failed to update status: ' + error.message);
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  // B2B: Assign order to Staff (Manager assigns, not process)
+  const assignToStaff = async () => {
+    if (!selectedOrder || !selectedStaff) return;
+    
+    try {
+      setUpdateLoading(true);
+      const staffMember = staff.find(s => s._id === selectedStaff);
+      
+      await api.updateOrderStatus(selectedOrder._id, 'Sorting');
+      await api.updateOrder(selectedOrder._id, {
+        assignedToStaff: selectedStaff,
+        assignedToStaffName: staffMember?.name || 'Staff',
+        assignedToStaffAt: new Date()
+      });
+      
+      fetchOrders();
+      setSelectedOrder(null);
+      setSelectedStaff('');
+    } catch (error) {
+      alert('Failed to assign: ' + error.message);
     } finally {
       setUpdateLoading(false);
     }
@@ -174,9 +257,17 @@ const OperationsDashboard = () => {
   // Get status color
   const getStatusColor = (status) => {
     const colors = {
+      'Received in Workshop': '#10b981',
+      'Tag Printed': '#06b6d4',
       'Ready for Processing': '#8b5cf6',
       'Sorting': '#64748b',
-      'Spotting': '#f59e0b'
+      'Spotting': '#f59e0b',
+      'Washing': '#3b82f6',
+      'Dry Cleaning': '#8b5cf6',
+      'Drying': '#f59e0b',
+      'Ironing': '#64748b',
+      'Quality Check': '#10b981',
+      'Packing': '#06b6d4'
     };
     return colors[status] || '#6b7280';
   };
@@ -220,8 +311,27 @@ const OperationsDashboard = () => {
             </button>
           </div>
         </div>
+
+        {/* Mode Switcher - Manager sees both, Staff sees only B2B */}
+        {!isStaff && (
+        <div className="ops-mode-switcher">
+          <button
+            className={`ops-mode-btn ${operationMode === 'operations' ? 'active' : ''}`}
+            onClick={() => { setOperationMode('operations'); setActiveTab('readyforprocessing'); }}
+          >
+            🏭 Operations
+          </button>
+          <button
+            className={`ops-mode-btn ${operationMode === 'b2b' ? 'active' : ''}`}
+            onClick={() => setOperationMode('b2b')}
+          >
+            🏢 B2B Operation ({stats.b2b})
+          </button>
+        </div>
+        )}
         
-        {/* Stats Cards / Tabs */}
+        {/* Stats Cards / Tabs - only in Operations mode (manager only) */}
+        {!isStaff && operationMode === 'operations' && (
         <div className="ops-stats">
           <div 
             className={`ops-stat-card readyforprocessing ${activeTab === 'readyforprocessing' ? 'active' : ''}`}
@@ -250,18 +360,25 @@ const OperationsDashboard = () => {
             <span className="stat-label">Spotting</span>
           </div>
         </div>
+        )}
       </div>
 
       {/* Orders List */}
       <div className="ops-content">
         <div className="ops-section-header">
           <h2>
-            {activeTab === 'readyforprocessing' ? '✅ Ready for Processing' : 
-             activeTab === 'sorting' ? '📦 Sorting Orders' : 
-             '🔍 Spotting Orders'} ({orders.length})
+            {operationMode === 'b2b' 
+              ? `🏢 ${isStaff ? 'B2B Assigned to Me' : 'B2B Operation'} (${orders.length})`
+              : `${activeTab === 'readyforprocessing' ? '✅ Ready for Processing' : 
+                activeTab === 'sorting' ? '📦 Sorting Orders' : 
+                '🔍 Spotting Orders'} (${orders.length})`}
           </h2>
           <p>
-            {activeTab === 'readyforprocessing' 
+            {operationMode === 'b2b'
+              ? isStaff 
+                ? 'B2B orders assigned to you - Process and move to next stage'
+                : 'B2B orders: Assign to Staff → Staff processes → Back to Manager → Frontdesk'
+              : activeTab === 'readyforprocessing' 
               ? 'Orders from Back Office - Verify items and move to Sorting' 
               : activeTab === 'sorting'
               ? 'Verify items and move to Spotting'
@@ -312,12 +429,19 @@ const OperationsDashboard = () => {
                     className="status-badge"
                     style={{ backgroundColor: getStatusColor(order.status) }}
                   >
-                    {activeTab === 'received' ? '📥' : activeTab === 'sorting' ? '📦' : '🔍'} {order.status}
+                    {order.orderType === 'b2b' && <span className="b2b-tag">B2B </span>}{order.status}
                   </span>
-                  {activeTab !== 'spotting' && (
-                    <button className="btn-process">
-                      Process →
-                    </button>
+                  {operationMode === 'b2b' && !isStaff && order.status === 'Received in Workshop' && (
+                    <button className="btn-process">Assign to Staff →</button>
+                  )}
+                  {operationMode === 'b2b' && order.assignedToStaffName && (
+                    <span className="staff-badge">👤 {order.assignedToStaffName}</span>
+                  )}
+                  {operationMode === 'b2b' && isStaff && !['Spotting', 'Washing', 'Dry Cleaning', 'Drying', 'Ironing', 'Quality Check', 'Packing'].includes(order.status) && (
+                    <button className="btn-process">Process →</button>
+                  )}
+                  {operationMode !== 'b2b' && !['Received in Workshop', 'Tag Printed', 'Spotting', 'Washing', 'Dry Cleaning', 'Drying', 'Ironing', 'Quality Check', 'Packing'].includes(order.status) && (
+                    <button className="btn-process">Process →</button>
                   )}
                 </div>
               </div>
@@ -342,6 +466,35 @@ const OperationsDashboard = () => {
             </div>
 
             <div className="modal-body">
+              {/* B2B: Assign to Staff (Received in Workshop) */}
+              {operationMode === 'b2b' && !isStaff && selectedOrder.status === 'Received in Workshop' && (
+                <div className="b2b-assign-section">
+                  <h4>👤 Assign to Staff</h4>
+                  <p className="assign-hint">B2B flow: Manager assigns to Staff → Staff processes → Back to Manager → Frontdesk</p>
+                  <div className="staff-grid">
+                    {staff.map((person) => (
+                      <div
+                        key={person._id}
+                        className={`staff-option ${selectedStaff === person._id ? 'selected' : ''}`}
+                        onClick={() => setSelectedStaff(person._id)}
+                      >
+                        <span className="staff-icon">👤</span>
+                        <span className="staff-name">{person.name}</span>
+                        {selectedStaff === person._id && <span className="check-icon">✓</span>}
+                      </div>
+                    ))}
+                  </div>
+                  {staff.length === 0 && <p className="no-staff-msg">No staff available</p>}
+                  <button 
+                    className="btn-primary assign-staff-btn"
+                    onClick={assignToStaff}
+                    disabled={!selectedStaff || updateLoading}
+                  >
+                    {updateLoading ? 'Assigning...' : '👤 Assign to Staff'}
+                  </button>
+                </div>
+              )}
+
               {/* Customer Info */}
               <div className="customer-info-card">
                 <h3>👤 {selectedOrder.customerName}</h3>
@@ -361,13 +514,13 @@ const OperationsDashboard = () => {
               {/* Items Verification / View */}
               <div className="items-verification-section">
                 <div className="section-header">
-                  <h4>{activeTab === 'spotting' ? '🧺 Items' : '🧺 Verify Items'}</h4>
-                  {activeTab !== 'spotting' && (
+                  <h4>{effectiveTab === 'spotting' ? '🧺 Items' : '🧺 Verify Items'}</h4>
+                  {effectiveTab !== 'spotting' && (
                     <span className="verification-progress">
                       {getVerifiedCount()}/{selectedOrder.items?.length || 0} verified
                     </span>
                   )}
-                  {activeTab === 'spotting' && (
+                  {effectiveTab === 'spotting' && (
                     <span className="verification-progress">
                       {selectedOrder.items?.length || 0} items
                     </span>
@@ -406,7 +559,7 @@ const OperationsDashboard = () => {
                 </div>
 
                 {/* Verification Message - only for received/sorting */}
-                {activeTab !== 'spotting' && (
+                {effectiveTab !== 'spotting' && (
                   <div className={`verification-message ${allItemsVerified() ? 'complete' : 'pending'}`}>
                     {allItemsVerified() ? (
                       <>✅ All items verified! Select target status and confirm.</>
@@ -429,14 +582,18 @@ const OperationsDashboard = () => {
             </div>
 
             <div className="modal-footer">
-              {activeTab === 'spotting' ? (
+              {operationMode === 'b2b' && !isStaff && selectedOrder?.status === 'Received in Workshop' ? (
+                <button className="btn-close-full" onClick={() => { setSelectedOrder(null); setSelectedStaff(''); }}>
+                  Close
+                </button>
+              ) : effectiveTab === 'spotting' || ['Tag Printed', 'Washing', 'Dry Cleaning', 'Drying', 'Ironing', 'Quality Check', 'Packing'].includes(selectedOrder?.status) ? (
                 <button 
                   className="btn-close-full"
                   onClick={() => setSelectedOrder(null)}
                 >
                   Close
                 </button>
-              ) : activeTab === 'sorting' ? (
+              ) : effectiveTab === 'sorting' ? (
                 /* Sorting tab - Two options: Spotting or Return */
                 <>
                   <button 

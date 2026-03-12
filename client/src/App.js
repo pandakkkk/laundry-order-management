@@ -142,8 +142,8 @@ function App() {
         
         {/* Bottom Row: Navigation */}
         <nav className="main-nav">
-          {/* Manager only sees Operations */}
-          {user?.role === 'manager' ? (
+          {/* Manager and Staff (B2B) see Operations */}
+          {(user?.role === 'manager' || user?.role === 'staff') ? (
             <Link 
               to="/operations" 
               className={`nav-link ${location.pathname === '/operations' ? 'active' : ''}`}
@@ -486,7 +486,7 @@ function App() {
         <Route path="/" element={
           <ProtectedRoute>
             {/* Redirect specialized roles to their dashboards */}
-            {user?.role === 'manager' ? <Navigate to="/operations" replace /> : 
+            {user?.role === 'manager' || user?.role === 'staff' ? <Navigate to="/operations" replace /> : 
              user?.role === 'drycleaner' ? <Navigate to="/drycleaner" replace /> :
              user?.role === 'linentracker' ? <Navigate to="/linentracker" replace /> :
              user?.role === 'backoffice' ? <Navigate to="/backoffice" replace /> :
@@ -525,7 +525,7 @@ function App() {
         } />
         <Route path="/operations" element={
           <ProtectedRoute>
-            {user?.role === 'manager' ? <OperationsPage /> : <Navigate to="/" replace />}
+            {(user?.role === 'manager' || user?.role === 'staff') ? <OperationsPage /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/drycleaner" element={

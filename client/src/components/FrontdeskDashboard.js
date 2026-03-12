@@ -6,6 +6,7 @@ import './FrontdeskDashboard.css';
 import './NotificationStyles.css';
 
 const FrontdeskDashboard = () => {
+  const [operationMode, setOperationMode] = useState('operations'); // 'operations' (retail) | 'b2b'
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -18,6 +19,7 @@ const FrontdeskDashboard = () => {
     returns: 0
   });
   const [deliveryPersonnel, setDeliveryPersonnel] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState('');
 
   // ========================================
@@ -25,7 +27,7 @@ const FrontdeskDashboard = () => {
   // ========================================
   const notificationFetch = useCallback(async () => {
     try {
-      // Fetch new orders (Received status, unassigned) and returns
+      // Fetch new orders (retail + B2B) and returns for notifications
       const [receivedRes, returnRes] = await Promise.all([
         api.getOrders({ status: 'Booking Confirmed', limit: 100 }),
         api.getOrders({ status: 'Return', limit: 100 })
@@ -62,32 +64,42 @@ const FrontdeskDashboard = () => {
     notificationIcon: '🎫'
   });
 
-  // Map tab names to actual status values
-  const tabToStatus = {
-    'neworders': 'Booking Confirmed',      // Newly created orders (need pickup assignment)
-    'assigned': 'Ready for Pickup',       // Assigned to delivery boy for pickup
-    'pickedup': 'Received in Workshop',   // Picked up and at workshop (moved to back office)
-    'returns': 'Return'                   // Return orders from Operations (need delivery assignment)
-  };
-
-  // Fetch delivery personnel
-  const fetchDeliveryPersonnel = useCallback(async () => {
-    try {
-      const response = await api.getDeliveryPersonnel();
-      if (response.success) {
-        setDeliveryPersonnel(response.data || []);
+  // Map tab names to actual status values (different for retail vs B2B)
+  const tabToStatus = operationMode === 'b2b'
+    ? {
+        'neworders': 'Booking Confirmed',      // B2B new orders - assign to manager
+        'assigned': 'Received in Workshop',    // B2B assigned to manager (goes direct to workshop)
+        'pickedup': 'Ready for Processing',   // B2B in operations pipeline
+        'returns': 'Return'
       }
+    : {
+        'neworders': 'Booking Confirmed',      // Retail - assign delivery boy for pickup
+        'assigned': 'Ready for Pickup',       // Assigned to delivery boy for pickup
+        'pickedup': 'Received in Workshop',   // Picked up and at workshop
+        'returns': 'Return'
+      };
+
+  // Fetch delivery personnel and managers
+  const fetchPersonnel = useCallback(async () => {
+    try {
+      const [deliveryRes, managersRes] = await Promise.all([
+        api.getDeliveryPersonnel(),
+        api.getManagers()
+      ]);
+      if (deliveryRes.success) setDeliveryPersonnel(deliveryRes.data || []);
+      if (managersRes.success) setManagers(managersRes.data || []);
     } catch (error) {
-      console.error('Error fetching delivery personnel:', error);
+      console.error('Error fetching personnel:', error);
     }
   }, []);
 
-  // Fetch orders based on active tab
+  // Fetch orders based on active tab and operation mode
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       const status = tabToStatus[activeTab];
-      const response = await api.getOrders({ status, limit: 100 });
+      const orderType = operationMode === 'b2b' ? 'b2b' : 'retail';
+      const response = await api.getOrders({ status, limit: 100, orderType });
       if (response.success) {
         // For neworders tab, filter only orders without assignedTo
         if (activeTab === 'neworders') {
@@ -96,46 +108,48 @@ const FrontdeskDashboard = () => {
           // For assigned tab, show only orders with assignedTo
           setOrders((response.data || []).filter(o => o.assignedTo));
         } else if (activeTab === 'returns') {
-          // For returns tab, show return orders that need delivery assignment
+          // Returns: B2B returns use delivery personnel; filter by orderType
           setOrders((response.data || []).filter(o => !o.assignedTo));
         } else {
           setOrders(response.data || []);
         }
       }
       
-      // Fetch stats
-      const statsResponse = await api.getOrderStats();
-      const allReceivedResponse = await api.getOrders({ status: 'Booking Confirmed', limit: 500 });
-      const allReadyForPickupResponse = await api.getOrders({ status: 'Ready for Pickup', limit: 500 });
-      const allReturnResponse = await api.getOrders({ status: 'Return', limit: 500 });
+      // Fetch stats (filtered by orderType)
+      const statusForAssigned = operationMode === 'b2b' ? 'Received in Workshop' : 'Ready for Pickup';
+      const statusForPickedup = operationMode === 'b2b' ? 'Ready for Processing' : 'Received in Workshop';
+      const [receivedRes, assignedRes, pickedupRes, returnRes] = await Promise.all([
+        api.getOrders({ status: 'Booking Confirmed', limit: 500, orderType }),
+        api.getOrders({ status: statusForAssigned, limit: 500, orderType }),
+        api.getOrders({ status: statusForPickedup, limit: 500, orderType }),
+        api.getOrders({ status: 'Return', limit: 500, orderType })
+      ]);
       
-      if (statsResponse.success) {
-        // Count unassigned Received orders
-        const unassignedCount = (allReceivedResponse.data || []).filter(o => !o.assignedTo).length;
-        // Count assigned Ready for Pickup orders
-        const assignedCount = (allReadyForPickupResponse.data || []).filter(o => o.assignedTo).length;
-        // Count unassigned Return orders
-        const returnsCount = (allReturnResponse.data || []).filter(o => !o.assignedTo).length;
-        
-        setStats({
-          neworders: unassignedCount,
-          assigned: assignedCount,
-          pickedup: statsResponse.data.receivedInWorkshopOrders || 0,
-          returns: returnsCount
-        });
-      }
+      const unassignedCount = (receivedRes.data || []).filter(o => !o.assignedTo).length;
+      const assignedCount = operationMode === 'b2b'
+        ? (assignedRes.data || []).filter(o => o.assignedTo).length
+        : (assignedRes.data || []).filter(o => o.assignedTo).length;
+      const pickedupCount = (pickedupRes.data || []).length;
+      const returnsCount = (returnRes.data || []).filter(o => !o.assignedTo).length;
+      
+      setStats({
+        neworders: unassignedCount,
+        assigned: assignedCount,
+        pickedup: pickedupCount,
+        returns: returnsCount
+      });
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, operationMode]);
 
   useEffect(() => {
     fetchOrders();
-    fetchDeliveryPersonnel();
-  }, [fetchOrders, fetchDeliveryPersonnel]);
+    fetchPersonnel();
+  }, [fetchOrders, fetchPersonnel]);
 
   // Handle order selection
   const handleOrderSelect = (order) => {
@@ -143,20 +157,46 @@ const FrontdeskDashboard = () => {
     setSelectedDeliveryPerson(order.assignedTo || '');
   };
 
-  // Assign delivery boy and move to Ready for Pickup
+  // Assign delivery boy and move to Ready for Pickup (retail)
   const assignDeliveryBoy = async () => {
     if (!selectedOrder || !selectedDeliveryPerson) return;
     
     try {
       setUpdateLoading(true);
       
-      // Find delivery person name
       const deliveryPerson = deliveryPersonnel.find(p => p._id === selectedDeliveryPerson);
       
       await api.updateOrderStatus(selectedOrder._id, 'Ready for Pickup');
       await api.updateOrder(selectedOrder._id, {
         assignedTo: selectedDeliveryPerson,
         assignedToName: deliveryPerson?.name || 'Delivery Boy',
+        assignedAt: new Date()
+      });
+      
+      fetchOrders();
+      setSelectedOrder(null);
+      setSelectedDeliveryPerson('');
+    } catch (error) {
+      alert('Failed to assign: ' + error.message);
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  // Assign to manager and move to Received in Workshop (B2B - skips pickup)
+  const assignToManager = async () => {
+    if (!selectedOrder || !selectedDeliveryPerson) return;
+    
+    try {
+      setUpdateLoading(true);
+      
+      const manager = managers.find(p => p._id === selectedDeliveryPerson);
+      
+      // B2B: Assign to manager and move directly to workshop (no pickup needed)
+      await api.updateOrderStatus(selectedOrder._id, 'Received in Workshop');
+      await api.updateOrder(selectedOrder._id, {
+        assignedTo: selectedDeliveryPerson,
+        assignedToName: manager?.name || 'Manager',
         assignedAt: new Date()
       });
       
@@ -223,6 +263,9 @@ const FrontdeskDashboard = () => {
 
   // Get tab label
   const getTabLabel = (tab) => {
+    if (operationMode === 'b2b' && tab === 'assigned') {
+      return 'ASSIGNED TO MANAGER';
+    }
     const labels = {
       'neworders': 'NEW ORDERS',
       'assigned': 'ASSIGNED',
@@ -234,10 +277,16 @@ const FrontdeskDashboard = () => {
 
   // Get section description
   const getSectionDescription = () => {
-    if (activeTab === 'neworders') return 'New orders - Assign delivery boy for pickup';
-    if (activeTab === 'assigned') return 'Orders assigned to delivery boys for pickup';
-    if (activeTab === 'pickedup') return 'Orders picked up and received in workshop';
-    if (activeTab === 'returns') return 'Return orders from Operations - Assign delivery boy for return delivery';
+    if (operationMode === 'b2b') {
+      if (activeTab === 'neworders') return 'B2B orders - Assign to manager (skips pickup)';
+      if (activeTab === 'assigned') return 'B2B orders assigned to managers - In workshop';
+      if (activeTab === 'pickedup') return 'B2B orders in operations pipeline';
+    } else {
+      if (activeTab === 'neworders') return 'New orders - Assign delivery boy for pickup';
+      if (activeTab === 'assigned') return 'Orders assigned to delivery boys for pickup';
+      if (activeTab === 'pickedup') return 'Orders picked up and received in workshop';
+    }
+    if (activeTab === 'returns') return 'Return orders - Assign delivery boy for return delivery';
     return '';
   };
 
@@ -276,7 +325,23 @@ const FrontdeskDashboard = () => {
               )}
             </button>
           </div>
-          <p>New Order → Assign Pickup → In Workshop</p>
+          <p>{operationMode === 'b2b' ? 'New Order → Assign to Manager → In Workshop' : 'New Order → Assign Pickup → In Workshop'}</p>
+        </div>
+
+        {/* Operation Mode Switcher - Operations vs B2B */}
+        <div className="fd-mode-switcher">
+          <button
+            className={`fd-mode-btn ${operationMode === 'operations' ? 'active' : ''}`}
+            onClick={() => { setOperationMode('operations'); setActiveTab('neworders'); }}
+          >
+            🏪 Operations
+          </button>
+          <button
+            className={`fd-mode-btn ${operationMode === 'b2b' ? 'active' : ''}`}
+            onClick={() => { setOperationMode('b2b'); setActiveTab('neworders'); }}
+          >
+            🏢 B2B Operations
+          </button>
         </div>
 
         {/* Stats Cards / Tabs */}
@@ -337,6 +402,9 @@ const FrontdeskDashboard = () => {
               >
                 <div className="order-card-header">
                   <span className="ticket-number">{order.ticketNumber}</span>
+                  {order.orderType === 'b2b' && (
+                    <span className="b2b-badge">B2B</span>
+                  )}
                   <span className="order-date">
                     {new Date(order.orderDate).toLocaleDateString('en-IN', { 
                       day: '2-digit', 
@@ -371,7 +439,7 @@ const FrontdeskDashboard = () => {
                   </span>
                   {activeTab === 'neworders' && (
                     <button className="btn-process">
-                      Assign →
+                      {operationMode === 'b2b' ? 'Assign to Manager →' : 'Assign →'}
                     </button>
                   )}
                   {activeTab === 'assigned' && (
@@ -432,46 +500,83 @@ const FrontdeskDashboard = () => {
                 </div>
               </div>
 
-              {/* Delivery Assignment for New Orders */}
+              {/* Assignment for New Orders - Delivery (retail) or Manager (B2B) */}
               {activeTab === 'neworders' && (
                 <div className="assignment-section">
-                  <h4>🚴 Assign Pickup Boy</h4>
-                  <p className="assignment-hint">Select a delivery boy to pick up this order from customer</p>
-                  
-                  <div className="delivery-grid">
-                    {deliveryPersonnel.map((person) => (
-                      <div
-                        key={person._id}
-                        className={`delivery-option ${selectedDeliveryPerson === person._id ? 'selected' : ''}`}
-                        onClick={() => setSelectedDeliveryPerson(person._id)}
-                      >
-                        <span className="delivery-icon">🚴</span>
-                        <span className="delivery-name">{person.name}</span>
-                        {selectedDeliveryPerson === person._id && (
-                          <span className="check-icon">✓</span>
-                        )}
+                  {operationMode === 'b2b' ? (
+                    <>
+                      <h4>🏢 Assign to Manager</h4>
+                      <p className="assignment-hint">B2B order - Assign to manager (goes directly to workshop, no pickup)</p>
+                      
+                      <div className="delivery-grid">
+                        {managers.map((person) => (
+                          <div
+                            key={person._id}
+                            className={`delivery-option ${selectedDeliveryPerson === person._id ? 'selected' : ''}`}
+                            onClick={() => setSelectedDeliveryPerson(person._id)}
+                          >
+                            <span className="delivery-icon">👔</span>
+                            <span className="delivery-name">{person.name}</span>
+                            {selectedDeliveryPerson === person._id && (
+                              <span className="check-icon">✓</span>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
 
-                  {deliveryPersonnel.length === 0 && (
-                    <p className="no-delivery-msg">No delivery personnel available</p>
+                      {managers.length === 0 && (
+                        <p className="no-delivery-msg">No managers available</p>
+                      )}
+
+                      <button 
+                        className="btn-primary assign-btn"
+                        onClick={assignToManager}
+                        disabled={!selectedDeliveryPerson || updateLoading}
+                      >
+                        {updateLoading ? 'Assigning...' : '🏢 Assign to Manager'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <h4>🚴 Assign Pickup Boy</h4>
+                      <p className="assignment-hint">Select a delivery boy to pick up this order from customer</p>
+                      
+                      <div className="delivery-grid">
+                        {deliveryPersonnel.map((person) => (
+                          <div
+                            key={person._id}
+                            className={`delivery-option ${selectedDeliveryPerson === person._id ? 'selected' : ''}`}
+                            onClick={() => setSelectedDeliveryPerson(person._id)}
+                          >
+                            <span className="delivery-icon">🚴</span>
+                            <span className="delivery-name">{person.name}</span>
+                            {selectedDeliveryPerson === person._id && (
+                              <span className="check-icon">✓</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {deliveryPersonnel.length === 0 && (
+                        <p className="no-delivery-msg">No delivery personnel available</p>
+                      )}
+
+                      <button 
+                        className="btn-primary assign-btn"
+                        onClick={assignDeliveryBoy}
+                        disabled={!selectedDeliveryPerson || updateLoading}
+                      >
+                        {updateLoading ? 'Assigning...' : '🚴 Assign & Send for Pickup'}
+                      </button>
+                    </>
                   )}
-
-                  <button 
-                    className="btn-primary assign-btn"
-                    onClick={assignDeliveryBoy}
-                    disabled={!selectedDeliveryPerson || updateLoading}
-                  >
-                    {updateLoading ? 'Assigning...' : '🚴 Assign & Send for Pickup'}
-                  </button>
                 </div>
               )}
 
               {/* Assigned Order Info */}
               {activeTab === 'assigned' && selectedOrder.assignedToName && (
                 <div className="assigned-section">
-                  <h4>🚴 Assigned Delivery Boy</h4>
+                  <h4>{operationMode === 'b2b' ? '🏢 Assigned to Manager' : '🚴 Assigned Delivery Boy'}</h4>
                   <div className="assigned-person">
                     <span className="person-icon">👤</span>
                     <div className="person-details">
@@ -483,7 +588,9 @@ const FrontdeskDashboard = () => {
                       )}
                     </div>
                   </div>
-                  <p className="pickup-status">📍 Order is pending pickup from customer</p>
+                  <p className="pickup-status">
+                    {operationMode === 'b2b' ? '✅ Order is in workshop (B2B - no pickup needed)' : '📍 Order is pending pickup from customer'}
+                  </p>
                 </div>
               )}
 

@@ -35,7 +35,7 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['combination', 'household', 'upper_body', 'lower_body', 'others']
+    enum: ['combination', 'household', 'upper_body', 'lower_body', 'others', 'b2b_business']
   },
   basePrice: {
     type: Number,

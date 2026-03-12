@@ -23,6 +23,12 @@ router.get('/my-assigned', checkPermission(PERMISSIONS.ORDER_VIEW), orderControl
 // Get delivery personnel list
 router.get('/delivery-personnel', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getDeliveryPersonnel);
 
+// Get managers list (for B2B assignment)
+router.get('/managers', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getManagers);
+
+// Get staff list (for B2B assignment by manager)
+router.get('/staff', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getStaff);
+
 // Get all orders
 router.get('/', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getAllOrders);
 

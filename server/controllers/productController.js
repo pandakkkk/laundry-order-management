@@ -306,6 +306,7 @@ exports.bulkUpdatePrices = async (req, res) => {
 };
 
 // Reset products to default prices (admin only)
+// Also adds any new products from DEFAULT_PRODUCTS that don't exist in DB
 exports.resetToDefaults = async (req, res) => {
   try {
     const updatedBy = req.user ? req.user.username || req.user.email : 'system';
@@ -314,12 +315,17 @@ exports.resetToDefaults = async (req, res) => {
       await Product.findOneAndUpdate(
         { productId: product.id },
         {
+          productId: product.id,
+          name: product.name,
+          category: product.category,
           basePrice: product.basePrice,
+          hasOptions: product.hasOptions || false,
           options: product.options || null,
+          isActive: true,
           updatedAt: Date.now(),
           updatedBy
         },
-        { upsert: true }
+        { upsert: true, runValidators: true }
       );
     }
     

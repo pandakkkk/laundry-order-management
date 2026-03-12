@@ -137,6 +137,11 @@ const orderSchema = new mongoose.Schema({
     enum: ['store', 'website'],
     default: 'store'
   },
+  orderType: {
+    type: String,
+    enum: ['retail', 'b2b'],
+    default: 'retail'
+  },
   // Delivery assignment fields
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
@@ -148,6 +153,20 @@ const orderSchema = new mongoose.Schema({
     default: ''
   },
   assignedAt: {
+    type: Date,
+    default: null
+  },
+  // B2B: Staff assignment (Manager assigns to Staff)
+  assignedToStaff: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  assignedToStaffName: {
+    type: String,
+    default: ''
+  },
+  assignedToStaffAt: {
     type: Date,
     default: null
   },
