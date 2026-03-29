@@ -237,6 +237,34 @@
   transform: scale(1.2);
 }
 
+.cart-item-notes {
+  width: 100%;
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+}
+
+.cart-item-notes-input {
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  border: 1px dashed #d1d5db;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #6b7280;
+  background: #f9fafb;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.cart-item-notes-input:focus {
+  border-color: #6366f1;
+  background: white;
+}
+
+.cart-item-notes-input::placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
 .cart-footer {
   border-top: 1px solid #e5e7eb;
   padding: 1.5rem;
@@ -255,6 +283,90 @@
   font-size: 1.75rem;
   font-weight: 700;
   color: #10b981;
+}
+
+.cart-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  color: #6b7280;
+}
+
+.discount-section {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  background: #fef3c7;
+  border-radius: 8px;
+  border: 1px solid #fcd34d;
+}
+
+.discount-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.discount-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #92400e;
+  white-space: nowrap;
+}
+
+.discount-input {
+  width: 70px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.discount-input:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.discount-reason-row {
+  margin-top: 0.5rem;
+}
+
+.discount-reason-input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.discount-reason-input:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.discount-amount-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.discount-amount {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.discount-warning {
+  text-align: center;
+  color: #dc2626;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
 }
 
 /* Products Section (Right) */

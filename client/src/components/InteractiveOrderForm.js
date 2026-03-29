@@ -56,6 +56,8 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   const [customerFound, setCustomerFound] = useState(null);
   const [phoneError, setPhoneError] = useState('');
   const [phoneTouched, setPhoneTouched] = useState(false);
+  const [discountPercentage, setDiscountPercentage] = useState(0);
+  const [discountReason, setDiscountReason] = useState('');
 
   // Fetch products from API
   const fetchProducts = useCallback(async () => {
@@ -201,7 +203,8 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
       quantity: quantity,
       price: price,
       selectedOptions: selectedOptions,
-      description: formatItemDescription(product, selectedOptions)
+      description: formatItemDescription(product, selectedOptions),
+      notes: ''
     };
 
     setCart([...cart, newItem]);
@@ -236,6 +239,13 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     ));
   };
 
+  // Update item notes
+  const updateItemNotes = (itemId, notes) => {
+    setCart(cart.map(item =>
+      item.id === itemId ? { ...item, notes } : item
+    ));
+  };
+
   // Update item price (admin only)
   const updateItemPrice = (itemId, newPrice) => {
     const parsedPrice = parseFloat(newPrice);
@@ -245,9 +255,19 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     ));
   };
 
-  // Calculate total
+  // Calculate subtotal
   const calculateTotal = () => {
     return cart.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+  };
+
+  // Calculate discount amount and final total
+  const calculateDiscountAmount = () => {
+    const subtotal = calculateTotal();
+    return subtotal * (discountPercentage / 100);
+  };
+
+  const calculateFinalAmount = () => {
+    return calculateTotal() - calculateDiscountAmount();
   };
 
   // Handle customer info change
@@ -466,9 +486,16 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
         quantity: item.quantity,
         price: item.price,
         productId: item.productId,
-        selectedOptions: item.selectedOptions
+        selectedOptions: item.selectedOptions,
+        notes: item.notes || ''
       })),
       totalAmount: calculateTotal(),
+      discount: {
+        percentage: discountPercentage,
+        amount: calculateDiscountAmount(),
+        reason: discountReason
+      },
+      finalAmount: calculateFinalAmount(),
       paymentMethod: customerInfo.paymentMethod,
       paymentStatus: customerInfo.paymentStatus,
       status: 'Booking Confirmed',
@@ -558,13 +585,22 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
                       <span>{item.quantity}</span>
                       <button onClick={() => updateQuantity(item.id, item.quantity + 1)}>+</button>
                     </div>
-                    <button 
-                      className="btn-remove" 
+                    <button
+                      className="btn-remove"
                       onClick={() => removeFromCart(item.id)}
                       title="Remove"
                     >
                       🗑️
                     </button>
+                  </div>
+                  <div className="cart-item-notes">
+                    <input
+                      type="text"
+                      className="cart-item-notes-input"
+                      placeholder="Add special instructions..."
+                      value={item.notes || ''}
+                      onChange={(e) => updateItemNotes(item.id, e.target.value)}
+                    />
                   </div>
                 </div>
               ))
@@ -572,17 +608,62 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
           </div>
 
           <div className="cart-footer">
+            <div className="cart-subtotal">
+              <span>Subtotal</span>
+              <span>₹{calculateTotal().toFixed(2)}</span>
+            </div>
+
+            {/* Discount Section */}
+            <div className="discount-section">
+              <div className="discount-row">
+                <label className="discount-label">Discount %</label>
+                <input
+                  type="number"
+                  className="discount-input"
+                  min="0"
+                  max="100"
+                  value={discountPercentage || ''}
+                  placeholder="0"
+                  onChange={(e) => {
+                    const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                    setDiscountPercentage(val);
+                    if (val === 0) setDiscountReason('');
+                  }}
+                />
+              </div>
+              {discountPercentage > 0 && (
+                <>
+                  <div className="discount-reason-row">
+                    <input
+                      type="text"
+                      className="discount-reason-input"
+                      placeholder="Reason for discount (required)"
+                      value={discountReason}
+                      onChange={(e) => setDiscountReason(e.target.value)}
+                    />
+                  </div>
+                  <div className="discount-amount-row">
+                    <span>Discount ({discountPercentage}%)</span>
+                    <span className="discount-amount">-₹{calculateDiscountAmount().toFixed(2)}</span>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div className="cart-total">
               <span>Total</span>
-              <span className="total-amount">₹{calculateTotal().toFixed(2)}</span>
+              <span className="total-amount">₹{calculateFinalAmount().toFixed(2)}</span>
             </div>
-            <button 
-              className="btn btn-success btn-lg btn-block" 
+            <button
+              className="btn btn-success btn-lg btn-block"
               onClick={handleProceedToBooking}
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || (discountPercentage > 0 && !discountReason.trim())}
             >
               📋 Proceed to Booking
             </button>
+            {discountPercentage > 0 && !discountReason.trim() && (
+              <div className="discount-warning">Please enter a reason for the discount</div>
+            )}
           </div>
         </div>
 

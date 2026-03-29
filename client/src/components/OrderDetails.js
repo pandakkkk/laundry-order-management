@@ -275,8 +275,24 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
             <h3>💳 Payment Information</h3>
             <div className="detail-grid">
               <div className="detail-item">
+                <span className="detail-label">Subtotal:</span>
+                <span className="detail-value">₹{order.totalAmount.toLocaleString('en-IN')}</span>
+              </div>
+              {order.discount && order.discount.percentage > 0 && (
+                <>
+                  <div className="detail-item">
+                    <span className="detail-label">Discount ({order.discount.percentage}%):</span>
+                    <span className="detail-value" style={{ color: '#dc2626' }}>-₹{order.discount.amount.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Discount Reason:</span>
+                    <span className="detail-value">{order.discount.reason}</span>
+                  </div>
+                </>
+              )}
+              <div className="detail-item">
                 <span className="detail-label">Total Amount:</span>
-                <span className="detail-value amount">₹{order.totalAmount.toLocaleString('en-IN')}</span>
+                <span className="detail-value amount">₹{(order.finalAmount || order.totalAmount).toLocaleString('en-IN')}</span>
               </div>
               <div className="detail-item">
                 <span className="detail-label">Payment Method:</span>

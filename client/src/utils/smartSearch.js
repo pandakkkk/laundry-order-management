@@ -37,7 +37,12 @@ export const detectSearchType = (query) => {
     return 'phoneNumber';
   }
   
-  // Default to 'all' for names or other text
+  // Check for name-like text (contains letters)
+  if (/[a-zA-Z]/.test(trimmed)) {
+    return 'customerName';
+  }
+
+  // Default to 'all' for other text
   return 'all';
 };
 

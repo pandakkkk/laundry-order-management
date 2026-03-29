@@ -206,12 +206,34 @@ function generateThermalReceipt(doc, order, config, qrCodeImage) {
   doc.moveDown(0.3);
   drawDashedLine(doc, margin, doc.y, config.lineWidth);
 
+  // Subtotal
+  doc.moveDown(0.5);
+  doc.fontSize(fs.normal).font('Helvetica');
+  const subtotalY = doc.y;
+  doc.text('Subtotal:', margin, subtotalY);
+  doc.text(order.totalAmount.toFixed(2), margin, subtotalY, { width: contentWidth, align: 'right' });
+
+  // Discount (if applied)
+  if (order.discount && order.discount.percentage > 0) {
+    doc.moveDown(0.3);
+    doc.fontSize(fs.small).font('Helvetica');
+    const discountY = doc.y;
+    doc.text(`Discount (${order.discount.percentage}%):`, margin, discountY);
+    doc.text(`-${order.discount.amount.toFixed(2)}`, margin, discountY, { width: contentWidth, align: 'right' });
+    if (order.discount.reason) {
+      doc.moveDown(0.2);
+      doc.fontSize(fs.small).font('Helvetica');
+      doc.text(`  Reason: ${order.discount.reason}`, margin);
+    }
+  }
+
   // Total
   doc.moveDown(0.5);
   doc.fontSize(fs.heading).font('Helvetica-Bold');
   const totalY = doc.y;
+  const displayTotal = order.finalAmount || order.totalAmount;
   doc.text('TOTAL:', margin, totalY);
-  doc.text(order.totalAmount.toFixed(2), margin, totalY, { width: contentWidth, align: 'right' });
+  doc.text(displayTotal.toFixed(2), margin, totalY, { width: contentWidth, align: 'right' });
 
   // Payment Info
   doc.moveDown(0.5);
@@ -385,11 +407,32 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
      .lineTo(margin + config.lineWidth, totalY)
      .stroke();
 
-  doc.moveDown(1);
+  doc.moveDown(0.5);
+  doc.fontSize(fontSize.normal)
+     .font('Helvetica')
+     .text('Subtotal:', 350, doc.y)
+     .text(order.totalAmount.toFixed(2), 500, doc.y);
+
+  if (order.discount && order.discount.percentage > 0) {
+    doc.moveDown(0.5);
+    doc.fontSize(fontSize.normal)
+       .font('Helvetica')
+       .text(`Discount (${order.discount.percentage}%):`, 350, doc.y)
+       .text(`-${order.discount.amount.toFixed(2)}`, 500, doc.y);
+    if (order.discount.reason) {
+      doc.moveDown(0.3);
+      doc.fontSize(fontSize.small)
+         .font('Helvetica')
+         .text(`Reason: ${order.discount.reason}`, 350, doc.y);
+    }
+  }
+
+  doc.moveDown(0.5);
+  const displayTotal = order.finalAmount || order.totalAmount;
   doc.fontSize(fontSize.subheading)
      .font('Helvetica-Bold')
      .text('Total Amount:', 350, doc.y)
-     .text(order.totalAmount.toFixed(2), 500, doc.y);
+     .text(displayTotal.toFixed(2), 500, doc.y);
 
   // Payment Information
   doc.moveDown(1.5);

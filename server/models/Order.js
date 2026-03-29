@@ -22,6 +22,10 @@ const orderItemSchema = new mongoose.Schema({
     type: Map,
     of: String,
     required: false
+  },
+  notes: {
+    type: String,
+    default: ''
   }
 });
 
@@ -67,6 +71,15 @@ const orderSchema = new mongoose.Schema({
   totalAmount: {
     type: Number,
     required: true
+  },
+  discount: {
+    percentage: { type: Number, default: 0, min: 0, max: 100 },
+    amount: { type: Number, default: 0 },
+    reason: { type: String, default: '' }
+  },
+  finalAmount: {
+    type: Number,
+    default: 0
   },
   paymentMethod: {
     type: String,
