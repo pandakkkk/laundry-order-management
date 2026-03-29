@@ -1,4 +1,5 @@
 const Order = require('../models/Order');
+const Customer = require('../models/Customer');
 const Counter = require('../models/Counter');
 
 // Generate ticket number in format: YYMMDD-XXX-NNNNN
@@ -267,7 +268,36 @@ exports.createOrder = async (req, res) => {
     orderData.orderDate = new Date();
 
     const order = await Order.create(orderData);
-    
+
+    // Auto-create or update customer record so they're searchable in future orders
+    if (orderData.phoneNumber) {
+      try {
+        const existingCustomer = await Customer.findOne({ phoneNumber: orderData.phoneNumber });
+        if (existingCustomer) {
+          existingCustomer.totalOrders += 1;
+          existingCustomer.totalSpent += (orderData.finalAmount || orderData.totalAmount || 0);
+          existingCustomer.lastOrderDate = new Date();
+          if (orderData.customerName && !existingCustomer.name) existingCustomer.name = orderData.customerName;
+          if (orderData.location && !existingCustomer.address) existingCustomer.address = orderData.location;
+          await existingCustomer.save();
+        } else {
+          const seq = await Counter.getNextSequence('customerId');
+          const customerId = `CUST${String(seq).padStart(5, '0')}`;
+          await Customer.create({
+            customerId,
+            phoneNumber: orderData.phoneNumber,
+            name: orderData.customerName || '',
+            address: orderData.location || '',
+            totalOrders: 1,
+            totalSpent: orderData.finalAmount || orderData.totalAmount || 0,
+            lastOrderDate: new Date()
+          });
+        }
+      } catch (custErr) {
+        console.error('Auto-create customer failed (non-blocking):', custErr);
+      }
+    }
+
     // Send order confirmation notification (async, don't wait)
     const notificationService = require('../services/notificationService');
     const notificationType = process.env.NOTIFICATION_TYPE || 'both'; // sms, whatsapp, or both
