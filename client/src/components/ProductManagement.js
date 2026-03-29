@@ -19,8 +19,10 @@ const ProductManagement = () => {
     category: 'household',
     basePrice: '',
     hasOptions: false,
-    isActive: true
+    isActive: true,
+    options: {}
   });
+  const [newOptionGroupName, setNewOptionGroupName] = useState('');
 
   // Fetch products
   const fetchProducts = useCallback(async () => {
@@ -74,6 +76,63 @@ const ProductManagement = () => {
       .substring(0, 30);
   };
 
+  // Option group handlers
+  const addOptionGroup = () => {
+    const name = newOptionGroupName.trim();
+    if (!name) return;
+    const key = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    if (formData.options[key]) {
+      setError(`Option group "${name}" already exists`);
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      options: { ...prev.options, [key]: [] }
+    }));
+    setNewOptionGroupName('');
+    setError(null);
+  };
+
+  const removeOptionGroup = (key) => {
+    setFormData(prev => {
+      const newOptions = { ...prev.options };
+      delete newOptions[key];
+      return { ...prev, options: newOptions };
+    });
+  };
+
+  const addOptionEntry = (groupKey) => {
+    setFormData(prev => ({
+      ...prev,
+      options: {
+        ...prev.options,
+        [groupKey]: [...(prev.options[groupKey] || []), { value: '', label: '', price: 0 }]
+      }
+    }));
+  };
+
+  const removeOptionEntry = (groupKey, index) => {
+    setFormData(prev => ({
+      ...prev,
+      options: {
+        ...prev.options,
+        [groupKey]: prev.options[groupKey].filter((_, i) => i !== index)
+      }
+    }));
+  };
+
+  const handleOptionEntryChange = (groupKey, index, field, val) => {
+    setFormData(prev => {
+      const entries = [...prev.options[groupKey]];
+      entries[index] = { ...entries[index], [field]: field === 'price' ? (parseFloat(val) || 0) : val };
+      // Auto-generate value from label
+      if (field === 'label') {
+        entries[index].value = val.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      }
+      return { ...prev, options: { ...prev.options, [groupKey]: entries } };
+    });
+  };
+
   // Open create modal
   const openCreateModal = () => {
     setModalMode('create');
@@ -84,8 +143,10 @@ const ProductManagement = () => {
       category: 'household',
       basePrice: '',
       hasOptions: false,
-      isActive: true
+      isActive: true,
+      options: {}
     });
+    setNewOptionGroupName('');
     setError(null);
     setShowModal(true);
   };
@@ -94,14 +155,29 @@ const ProductManagement = () => {
   const openEditModal = (product) => {
     setModalMode('edit');
     setSelectedProduct(product);
+    // Parse existing options - handle both Map-like and plain objects
+    let existingOptions = {};
+    if (product.options && typeof product.options === 'object') {
+      Object.entries(product.options).forEach(([key, entries]) => {
+        if (Array.isArray(entries)) {
+          existingOptions[key] = entries.map(e => ({
+            value: e.value || '',
+            label: e.label || '',
+            price: e.price || 0
+          }));
+        }
+      });
+    }
     setFormData({
       productId: product.productId,
       name: product.name,
       category: product.category,
       basePrice: product.basePrice.toString(),
       hasOptions: product.hasOptions || false,
-      isActive: product.isActive !== false
+      isActive: product.isActive !== false,
+      options: existingOptions
     });
+    setNewOptionGroupName('');
     setError(null);
     setShowModal(true);
   };
@@ -113,9 +189,23 @@ const ProductManagement = () => {
     setSaving(true);
 
     try {
+      // Build options: strip empty groups and entries without labels
+      let cleanOptions = null;
+      if (formData.hasOptions && Object.keys(formData.options).length > 0) {
+        cleanOptions = {};
+        Object.entries(formData.options).forEach(([key, entries]) => {
+          const validEntries = entries.filter(e => e.label && e.value);
+          if (validEntries.length > 0) {
+            cleanOptions[key] = validEntries;
+          }
+        });
+        if (Object.keys(cleanOptions).length === 0) cleanOptions = null;
+      }
+
       const productData = {
         ...formData,
-        basePrice: parseFloat(formData.basePrice) || 0
+        basePrice: parseFloat(formData.basePrice) || 0,
+        options: cleanOptions
       };
 
       if (modalMode === 'create') {
@@ -466,6 +556,86 @@ const ProductManagement = () => {
                     </label>
                   </div>
                 </div>
+
+                {/* Options Editor */}
+                {formData.hasOptions && (
+                  <div className="pm-options-editor">
+                    <h3>Product Options / Variants</h3>
+
+                    {/* Existing option groups */}
+                    {Object.entries(formData.options).map(([groupKey, entries]) => (
+                      <div key={groupKey} className="pm-option-group">
+                        <div className="pm-option-group-header">
+                          <span className="pm-option-group-name">{groupKey.replace(/_/g, ' ')}</span>
+                          <button
+                            type="button"
+                            className="btn-remove-group"
+                            onClick={() => removeOptionGroup(groupKey)}
+                            title="Remove this option group"
+                          >
+                            Remove Group
+                          </button>
+                        </div>
+
+                        {entries.map((entry, idx) => (
+                          <div key={idx} className="pm-option-entry">
+                            <input
+                              type="text"
+                              placeholder="Label (e.g. Male, White)"
+                              value={entry.label}
+                              onChange={(e) => handleOptionEntryChange(groupKey, idx, 'label', e.target.value)}
+                            />
+                            <div className="pm-option-price-input">
+                              <span>₹</span>
+                              <input
+                                type="number"
+                                placeholder="0"
+                                step="0.01"
+                                value={entry.price || ''}
+                                onChange={(e) => handleOptionEntryChange(groupKey, idx, 'price', e.target.value)}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              className="btn-remove-entry"
+                              onClick={() => removeOptionEntry(groupKey, idx)}
+                              title="Remove"
+                            >
+                              x
+                            </button>
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          className="btn-add-entry"
+                          onClick={() => addOptionEntry(groupKey)}
+                        >
+                          + Add Option
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Add new option group */}
+                    <div className="pm-add-group">
+                      <input
+                        type="text"
+                        placeholder="New option group name (e.g. Gender, Color, Work Level)"
+                        value={newOptionGroupName}
+                        onChange={(e) => setNewOptionGroupName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addOptionGroup(); } }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-add-group"
+                        onClick={addOptionGroup}
+                        disabled={!newOptionGroupName.trim()}
+                      >
+                        + Add Group
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="pm-modal-footer">
                 <button type="button" className="btn-secondary" onClick={() => setShowModal(false)} disabled={saving}>

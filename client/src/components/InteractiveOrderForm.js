@@ -329,7 +329,8 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
     try {
       setLoadingCustomers(true);
       const response = await api.getCustomers({ limit: 1000 }); // Get all customers
-      const customers = Array.isArray(response.data) ? response.data : [];
+      const rawData = response.data;
+      const customers = Array.isArray(rawData) ? rawData : (rawData && Array.isArray(rawData.data) ? rawData.data : []);
       setAllCustomers(customers);
       setFilteredCustomers(customers);
     } catch (error) {

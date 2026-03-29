@@ -1,26 +1,5 @@
 const mongoose = require('mongoose');
 
-const productOptionSchema = new mongoose.Schema({
-  value: {
-    type: String,
-    required: true
-  },
-  label: {
-    type: String,
-    required: true
-  },
-  price: {
-    type: Number,
-    default: 0
-  }
-});
-
-const productOptionsSchema = new mongoose.Schema({
-  gender: [productOptionSchema],
-  color: [productOptionSchema],
-  type: [productOptionSchema]
-}, { _id: false });
-
 const productSchema = new mongoose.Schema({
   productId: {
     type: String,
@@ -47,7 +26,7 @@ const productSchema = new mongoose.Schema({
     default: false
   },
   options: {
-    type: productOptionsSchema,
+    type: mongoose.Schema.Types.Mixed,
     default: null
   },
   isActive: {
