@@ -83,35 +83,41 @@ const OrderTracker = ({
       setSearchQuery('');
       return;
     }
-    
+
     setActiveFilter(filter);
     setSearchQuery('');
     setHasSearched(true);
     setLoading(true);
-    
+
     try {
       let params = {};
-      
-      switch (filter) {
-        case 'today':
-          params.today = true;
-          break;
-        case 'ready':
-          params.status = 'Ready for Pickup';
-          break;
-        case 'inprocess':
-          params.inProcess = true;
-          break;
-        case 'recent':
-          // Last 24 hours
-          const yesterday = new Date();
-          yesterday.setHours(yesterday.getHours() - 24);
-          params.startDate = yesterday.toISOString();
-          break;
-        default:
-          break;
+
+      // Handle status-prefixed filters from StatsCards (e.g., "status:Sorting")
+      if (filter.startsWith('status:')) {
+        const statusValue = filter.substring(7);
+        params.status = statusValue;
+      } else {
+        switch (filter) {
+          case 'today':
+            params.today = true;
+            break;
+          case 'ready':
+            params.status = 'Ready for Pickup';
+            break;
+          case 'inprocess':
+            params.inProcess = true;
+            break;
+          case 'recent':
+            // Last 24 hours
+            const yesterday = new Date();
+            yesterday.setHours(yesterday.getHours() - 24);
+            params.startDate = yesterday.toISOString();
+            break;
+          default:
+            break;
+        }
       }
-      
+
       const data = await api.getOrders(params);
       setOrders(data.data || []);
     } catch (error) {
@@ -212,16 +218,24 @@ const OrderTracker = ({
         <div className="compact-stats-wrapper">
           <StatsCards stats={stats} onFilterChange={(filter) => {
             if (filter) {
-              // Map filter values to quick filter keys
+              // Map special filter values to quick filter keys
               const filterMap = {
                 'TODAY': 'today',
                 'IN_PROCESS': 'inprocess',
                 'Ready for Pickup': 'ready'
               };
-              const quickFilter = filterMap[filter] || filter.toLowerCase();
-              handleQuickFilter(quickFilter);
+              const quickFilter = filterMap[filter];
+              if (quickFilter) {
+                handleQuickFilter(quickFilter);
+              } else {
+                // Handle direct status filters (e.g., "Sorting", "Washing", "Delivered")
+                handleQuickFilter(`status:${filter}`);
+              }
+            } else {
+              // Clear filters when empty filter passed (e.g., clicking Total Orders)
+              handleClearAll();
             }
-          }} currentFilter={activeFilter || ''} />
+          }} currentFilter={activeFilter ? (activeFilter.startsWith('status:') ? activeFilter.substring(7) : activeFilter) : ''} />
         </div>
       )}
 

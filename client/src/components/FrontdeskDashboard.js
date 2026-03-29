@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
+import QRScanner from './QRScanner';
 import useOrderNotifications from '../hooks/useOrderNotifications';
 import NotificationBell from './NotificationBell';
 import './FrontdeskDashboard.css';
@@ -21,6 +22,7 @@ const FrontdeskDashboard = () => {
   const [deliveryPersonnel, setDeliveryPersonnel] = useState([]);
   const [managers, setManagers] = useState([]);
   const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
 
   // ========================================
   // NOTIFICATION SYSTEM
@@ -290,6 +292,30 @@ const FrontdeskDashboard = () => {
     return '';
   };
 
+  // Handle QR scan result
+  const handleScanResult = async (scanData) => {
+    setShowScanner(false);
+    try {
+      let order = null;
+      if (scanData.orderId) {
+        const response = await api.getOrderById(scanData.orderId);
+        if (response.success) order = response.data;
+      }
+      if (!order && scanData.ticketNumber) {
+        const response = await api.getOrderByTicketNumber(scanData.ticketNumber);
+        if (response.success) order = response.data;
+      }
+      if (order) {
+        setSelectedOrder(order);
+      } else {
+        alert('Order not found! Please check the QR code or ticket number.');
+      }
+    } catch (error) {
+      console.error('Error finding order:', error);
+      alert('Error finding order. Please try again.');
+    }
+  };
+
   return (
     <div className="frontdesk-dashboard">
       {/* Notification Bell Component */}
@@ -315,15 +341,18 @@ const FrontdeskDashboard = () => {
         <div className="fd-title">
           <div className="fd-title-row">
             <h1>🎫 Frontdesk Dashboard</h1>
-            <button
-              className={`btn-notification header-bell ${bellShaking ? 'shaking' : ''} ${unreadCount > 0 ? 'has-notifications' : ''}`}
-              onClick={togglePanel}
-            >
-              <span className="bell-icon">🔔</span>
-              {unreadCount > 0 && (
-                <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
-              )}
-            </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button style={{ background: '#3B82F6', border: 'none', color: 'white', width: 36, height: 36, borderRadius: 10, fontSize: '1.1rem', cursor: 'pointer' }} onClick={() => setShowScanner(true)} title="Scan QR">📷</button>
+              <button
+                className={`btn-notification header-bell ${bellShaking ? 'shaking' : ''} ${unreadCount > 0 ? 'has-notifications' : ''}`}
+                onClick={togglePanel}
+              >
+                <span className="bell-icon">🔔</span>
+                {unreadCount > 0 && (
+                  <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                )}
+              </button>
+            </div>
           </div>
           <p>{operationMode === 'b2b' ? 'New Order → Assign to Manager → In Workshop' : 'New Order → Assign Pickup → In Workshop'}</p>
         </div>
@@ -647,6 +676,14 @@ const FrontdeskDashboard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* QR Scanner Modal */}
+      {showScanner && (
+        <QRScanner
+          onScan={handleScanResult}
+          onClose={() => setShowScanner(false)}
+        />
       )}
     </div>
   );

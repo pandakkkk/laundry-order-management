@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
+import QRScanner from './QRScanner';
 import './LinenTrackerDashboard.css';
 
 const LinenTrackerDashboard = () => {
@@ -17,6 +18,7 @@ const LinenTrackerDashboard = () => {
   const [rackNumber, setRackNumber] = useState('');
   const [deliveryPersonnel, setDeliveryPersonnel] = useState([]);
   const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
 
   // Map tab names to actual status values
   const tabToStatus = {
@@ -227,15 +229,42 @@ const LinenTrackerDashboard = () => {
     return 'Process';
   };
 
+  // Handle QR scan result
+  const handleScanResult = async (scanData) => {
+    setShowScanner(false);
+    try {
+      let order = null;
+      if (scanData.orderId) {
+        const response = await api.getOrderById(scanData.orderId);
+        if (response.success) order = response.data;
+      }
+      if (!order && scanData.ticketNumber) {
+        const response = await api.getOrderByTicketNumber(scanData.ticketNumber);
+        if (response.success) order = response.data;
+      }
+      if (order) {
+        setSelectedOrder(order);
+      } else {
+        alert('Order not found! Please check the QR code or ticket number.');
+      }
+    } catch (error) {
+      console.error('Error finding order:', error);
+      alert('Error finding order. Please try again.');
+    }
+  };
+
   return (
     <div className="linentracker-dashboard">
       {/* Header */}
       <div className="lt-header">
         <div className="lt-header-top">
           <h1>📋 Linen Tracker Dashboard</h1>
-          <button className="btn-refresh" onClick={fetchOrders}>
-            🔄
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button style={{ background: '#3B82F6', border: 'none', color: 'white', width: 36, height: 36, borderRadius: 10, fontSize: '1.1rem', cursor: 'pointer' }} onClick={() => setShowScanner(true)} title="Scan QR">📷</button>
+            <button className="btn-refresh" onClick={fetchOrders}>
+              🔄
+            </button>
+          </div>
         </div>
         
         {/* Stats Cards / Tabs */}
@@ -590,6 +619,14 @@ const LinenTrackerDashboard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* QR Scanner Modal */}
+      {showScanner && (
+        <QRScanner
+          onScan={handleScanResult}
+          onClose={() => setShowScanner(false)}
+        />
       )}
     </div>
   );

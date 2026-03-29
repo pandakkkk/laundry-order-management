@@ -254,12 +254,18 @@ exports.getOrderByTicketNumber = async (req, res) => {
 exports.createOrder = async (req, res) => {
   try {
     const orderData = { ...req.body };
-    
+
     // ALWAYS auto-generate ticketNumber and orderNumber to ensure proper sequencing
     // The preview numbers shown in the form are just for display purposes
     orderData.ticketNumber = await generateTicketNumber();
     orderData.orderNumber = await generateOrderNumber();
-    
+
+    // Ensure status defaults to 'Booking Confirmed'
+    if (!orderData.status) orderData.status = 'Booking Confirmed';
+
+    // Always use server time for orderDate to avoid client/server time mismatch
+    orderData.orderDate = new Date();
+
     const order = await Order.create(orderData);
     
     // Send order confirmation notification (async, don't wait)

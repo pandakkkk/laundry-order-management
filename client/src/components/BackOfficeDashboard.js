@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import GarmentTagPrint from './GarmentTagPrint';
+import QRScanner from './QRScanner';
 import useOrderNotifications from '../hooks/useOrderNotifications';
 import NotificationBell from './NotificationBell';
 import './BackOfficeDashboard.css';
@@ -19,6 +20,7 @@ const BackOfficeDashboard = () => {
   });
   const [showTagPrint, setShowTagPrint] = useState(false);
   const [tagPrintOrder, setTagPrintOrder] = useState(null);
+  const [showScanner, setShowScanner] = useState(false);
 
   // ========================================
   // NOTIFICATION SYSTEM
@@ -191,6 +193,30 @@ const BackOfficeDashboard = () => {
     return '';
   };
 
+  // Handle QR scan result
+  const handleScanResult = async (scanData) => {
+    setShowScanner(false);
+    try {
+      let order = null;
+      if (scanData.orderId) {
+        const response = await api.getOrderById(scanData.orderId);
+        if (response.success) order = response.data;
+      }
+      if (!order && scanData.ticketNumber) {
+        const response = await api.getOrderByTicketNumber(scanData.ticketNumber);
+        if (response.success) order = response.data;
+      }
+      if (order) {
+        setSelectedOrder(order);
+      } else {
+        alert('Order not found! Please check the QR code or ticket number.');
+      }
+    } catch (error) {
+      console.error('Error finding order:', error);
+      alert('Error finding order. Please try again.');
+    }
+  };
+
   return (
     <div className="backoffice-dashboard">
       {/* Notification Bell Component */}
@@ -216,15 +242,18 @@ const BackOfficeDashboard = () => {
         <div className="bo-title">
           <div className="bo-title-row">
             <h1>🏢 Back Office Dashboard</h1>
-            <button
-              className={`btn-notification header-bell ${bellShaking ? 'shaking' : ''} ${unreadCount > 0 ? 'has-notifications' : ''}`}
-              onClick={togglePanel}
-            >
-              <span className="bell-icon">🔔</span>
-              {unreadCount > 0 && (
-                <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
-              )}
-            </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button style={{ background: '#3B82F6', border: 'none', color: 'white', width: 36, height: 36, borderRadius: 10, fontSize: '1.1rem', cursor: 'pointer' }} onClick={() => setShowScanner(true)} title="Scan QR">📷</button>
+              <button
+                className={`btn-notification header-bell ${bellShaking ? 'shaking' : ''} ${unreadCount > 0 ? 'has-notifications' : ''}`}
+                onClick={togglePanel}
+              >
+                <span className="bell-icon">🔔</span>
+                {unreadCount > 0 && (
+                  <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                )}
+              </button>
+            </div>
           </div>
           <p>In Workshop → Tagging → Ready for Processing</p>
         </div>
@@ -438,9 +467,17 @@ const BackOfficeDashboard = () => {
 
       {/* Tag Print Component - Uses GarmentTagPrint's built-in modal */}
       {showTagPrint && tagPrintOrder && (
-        <GarmentTagPrint 
-          order={tagPrintOrder} 
+        <GarmentTagPrint
+          order={tagPrintOrder}
           onClose={handleTagPrintClose}
+        />
+      )}
+
+      {/* QR Scanner Modal */}
+      {showScanner && (
+        <QRScanner
+          onScan={handleScanResult}
+          onClose={() => setShowScanner(false)}
         />
       )}
     </div>

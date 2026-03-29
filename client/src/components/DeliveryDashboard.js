@@ -149,55 +149,66 @@ const DeliveryDashboard = () => {
   const checkForNewOrders = useCallback((newOrders) => {
     const currentOrderIds = new Set(newOrders.map(o => o._id));
     const previousOrderIds = previousOrderIdsRef.current;
-    
-    // Find new pickup orders
-    const newPickups = newOrders.filter(order => 
-      order.status === 'Ready for Pickup' && 
-      !previousOrderIds.has(order._id)
-    );
 
-    if (newPickups.length > 0 && previousOrderIds.size > 0) {
-      // We have new pickup orders!
-      console.log('🔔 New pickup orders detected:', newPickups.length);
-      
+    // Find ALL newly assigned orders (pickups AND deliveries)
+    const newAssignments = newOrders.filter(order => !previousOrderIds.has(order._id));
+
+    if (newAssignments.length > 0 && previousOrderIds.size > 0) {
+      const newPickups = newAssignments.filter(o => o.status === 'Ready for Pickup');
+      const newDeliveries = newAssignments.filter(o => o.status === 'Ready for Delivery' || o.status === 'Out for Delivery');
+
+      console.log('🔔 New assignments detected:', newAssignments.length, '(pickups:', newPickups.length, ', deliveries:', newDeliveries.length, ')');
+
       // Play sound
       playNotificationSound();
-      
+
       // Shake the bell
       setBellShaking(true);
       setTimeout(() => setBellShaking(false), 1000);
-      
-      // Set pulse animation on pickup button
-      setHasNewPickups(true);
-      setTimeout(() => setHasNewPickups(false), 5000);
-      
+
+      // Set pulse animation on pickup button if there are new pickups
+      if (newPickups.length > 0) {
+        setHasNewPickups(true);
+        setTimeout(() => setHasNewPickups(false), 5000);
+      }
+
       // Add to notifications
-      const newNotifications = newPickups.map(order => ({
-        id: order._id,
-        ticketNumber: order.ticketNumber,
-        customerName: order.customerName,
-        address: order.address,
-        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-        read: false
-      }));
-      
-      setNewPickupNotifications(prev => [...newNotifications, ...prev].slice(0, 10));
-      setUnreadCount(prev => prev + newPickups.length);
+      const newNotifications = newAssignments.map(order => {
+        const isPickup = order.status === 'Ready for Pickup';
+        return {
+          id: order._id,
+          ticketNumber: order.ticketNumber,
+          customerName: order.customerName,
+          status: order.status,
+          address: order.address,
+          type: isPickup ? 'pickup' : 'delivery',
+          time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+          read: false
+        };
+      });
+
+      setNewPickupNotifications(prev => [...newNotifications, ...prev].slice(0, 15));
+      setUnreadCount(prev => prev + newAssignments.length);
       setShowNotificationToast(true);
-      
+
       // Send browser notification
-      if (newPickups.length === 1) {
+      if (newAssignments.length === 1) {
+        const order = newAssignments[0];
+        const isPickup = order.status === 'Ready for Pickup';
         sendBrowserNotification(
-          '🚴 New Pickup Assigned!',
-          `${newPickups[0].customerName} - ${newPickups[0].address?.slice(0, 50) || 'No address'}`,
+          isPickup ? '🚴 New Pickup Assigned!' : '📦 New Delivery Assigned!',
+          `${order.customerName} - ${order.address?.slice(0, 50) || 'No address'}`,
         );
       } else {
+        const parts = [];
+        if (newPickups.length > 0) parts.push(`${newPickups.length} pickup${newPickups.length > 1 ? 's' : ''}`);
+        if (newDeliveries.length > 0) parts.push(`${newDeliveries.length} deliver${newDeliveries.length > 1 ? 'ies' : 'y'}`);
         sendBrowserNotification(
-          '🚴 New Pickups Assigned!',
-          `You have ${newPickups.length} new pickup orders waiting`,
+          `🚴 ${newAssignments.length} New Order${newAssignments.length > 1 ? 's' : ''} Assigned!`,
+          `You have ${parts.join(' and ')} waiting`,
         );
       }
-      
+
       // Auto-hide toast after 5 seconds
       setTimeout(() => setShowNotificationToast(false), 5000);
     }
@@ -427,6 +438,10 @@ const DeliveryDashboard = () => {
 
   // Handle navigate to address
   const handleNavigate = (address) => {
+    if (!address) {
+      alert('No address available for this order');
+      return;
+    }
     const encodedAddress = encodeURIComponent(address);
     window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank');
   };
@@ -610,9 +625,11 @@ const DeliveryDashboard = () => {
           setShowNotificationToast(false);
           setActiveMode('pickup');
         }}>
-          <div className="toast-icon">🚴</div>
+          <div className="toast-icon">{newPickupNotifications[0]?.type === 'delivery' ? '📤' : '🚴'}</div>
           <div className="toast-content">
-            <div className="toast-title">New Pickup Assigned!</div>
+            <div className="toast-title">
+              {newPickupNotifications[0]?.type === 'delivery' ? 'New Delivery Assigned!' : 'New Pickup Assigned!'}
+            </div>
             <div className="toast-body">
               {newPickupNotifications[0]?.customerName} - {newPickupNotifications[0]?.ticketNumber}
             </div>
@@ -695,14 +712,19 @@ const DeliveryDashboard = () => {
                       setShowNotificationPanel(false);
                     }}
                   >
-                    <div className="notification-icon">📦</div>
+                    <div className="notification-icon">{notification.type === 'delivery' ? '📤' : '📥'}</div>
                     <div className="notification-content">
                       <div className="notification-title">
-                        New Pickup: {notification.ticketNumber}
+                        {notification.type === 'delivery' ? 'New Delivery' : 'New Pickup'}: {notification.ticketNumber}
                       </div>
                       <div className="notification-body">
                         {notification.customerName}
                       </div>
+                      {notification.status && (
+                        <div className="notification-status" style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+                          Status: {notification.status}
+                        </div>
+                      )}
                       <div className="notification-address">
                         📍 {notification.address?.slice(0, 40) || 'No address'}...
                       </div>

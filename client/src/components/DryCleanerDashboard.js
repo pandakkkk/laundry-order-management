@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
+import QRScanner from './QRScanner';
 import useOrderNotifications from '../hooks/useOrderNotifications';
 import NotificationBell from './NotificationBell';
 import './DryCleanerDashboard.css';
@@ -20,6 +21,7 @@ const DryCleanerDashboard = () => {
     qualitycheck: 0,
     packing: 0
   });
+  const [showScanner, setShowScanner] = useState(false);
 
   // ========================================
   // NOTIFICATION SYSTEM
@@ -225,6 +227,30 @@ const DryCleanerDashboard = () => {
     return `Verify items and move to ${nextStatus}`;
   };
 
+  // Handle QR scan result
+  const handleScanResult = async (scanData) => {
+    setShowScanner(false);
+    try {
+      let order = null;
+      if (scanData.orderId) {
+        const response = await api.getOrderById(scanData.orderId);
+        if (response.success) order = response.data;
+      }
+      if (!order && scanData.ticketNumber) {
+        const response = await api.getOrderByTicketNumber(scanData.ticketNumber);
+        if (response.success) order = response.data;
+      }
+      if (order) {
+        setSelectedOrder(order);
+      } else {
+        alert('Order not found! Please check the QR code or ticket number.');
+      }
+    } catch (error) {
+      console.error('Error finding order:', error);
+      alert('Error finding order. Please try again.');
+    }
+  };
+
   return (
     <div className="drycleaner-dashboard">
       {/* Notification Bell Component */}
@@ -259,6 +285,7 @@ const DryCleanerDashboard = () => {
                 <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
               )}
             </button>
+            <button style={{ background: '#3B82F6', border: 'none', color: 'white', width: 36, height: 36, borderRadius: 10, fontSize: '1.1rem', cursor: 'pointer' }} onClick={() => setShowScanner(true)} title="Scan QR">📷</button>
             <button className="btn-refresh" onClick={fetchOrders}>
               🔄
             </button>
@@ -522,6 +549,14 @@ const DryCleanerDashboard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* QR Scanner Modal */}
+      {showScanner && (
+        <QRScanner
+          onScan={handleScanResult}
+          onClose={() => setShowScanner(false)}
+        />
       )}
     </div>
   );

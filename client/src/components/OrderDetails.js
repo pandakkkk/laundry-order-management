@@ -16,6 +16,9 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
   const [selectedRack, setSelectedRack] = useState(order?.rackNumber || '');
   const [showGarmentTagModal, setShowGarmentTagModal] = useState(false);
   const [selectedPaperSize, setSelectedPaperSize] = useState('A4'); // A4, 80mm, 58mm
+  const [isEditingDelivery, setIsEditingDelivery] = useState(false);
+  const [editDeliveryValue, setEditDeliveryValue] = useState('');
+  const [isSavingDelivery, setIsSavingDelivery] = useState(false);
 
   // Debug: Log order status to help troubleshoot
   useEffect(() => {
@@ -146,6 +149,37 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
     }
   };
 
+  const handleEditDelivery = () => {
+    // Pre-fill with existing value in datetime-local format
+    if (order.expectedDelivery) {
+      const d = new Date(order.expectedDelivery);
+      const pad = (n) => String(n).padStart(2, '0');
+      setEditDeliveryValue(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    } else {
+      setEditDeliveryValue('');
+    }
+    setIsEditingDelivery(true);
+  };
+
+  const handleSaveDelivery = async () => {
+    try {
+      setIsSavingDelivery(true);
+      const newValue = editDeliveryValue ? new Date(editDeliveryValue).toISOString() : null;
+      const result = await api.updateOrder(order._id, { expectedDelivery: newValue });
+      if (result.success) {
+        order.expectedDelivery = newValue;
+        setIsEditingDelivery(false);
+      } else {
+        alert('Failed to update expected delivery: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating expected delivery:', error);
+      alert('Failed to update expected delivery.');
+    } finally {
+      setIsSavingDelivery(false);
+    }
+  };
+
   const handleRackUpdate = async (rackNumber) => {
     try {
       setIsUpdatingRack(true);
@@ -221,13 +255,19 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
           <div className="detail-section">
             <h3>🧺 Items</h3>
             <div className="items-list">
-              {order.items.map((item, index) => (
-                <div key={index} className="item-row">
-                  <span className="item-qty">{item.quantity}x</span>
-                  <span className="item-desc">{item.description}</span>
-                  <span className="item-price">₹{item.price.toFixed(2)}</span>
+              {order.items && order.items.length > 0 ? (
+                order.items.map((item, index) => (
+                  <div key={index} className="item-row">
+                    <span className="item-qty">{item.quantity}x</span>
+                    <span className="item-desc">{item.description}</span>
+                    <span className="item-price">₹{(item.price || 0).toFixed(2)}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="no-items-message" style={{ padding: '1rem', color: '#999', textAlign: 'center' }}>
+                  No items in this order
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -260,7 +300,42 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
               </div>
               <div className="detail-item">
                 <span className="detail-label">Expected Delivery:</span>
-                <span className="detail-value">{order.expectedDelivery ? formatDate(order.expectedDelivery) : 'Will be shared via WhatsApp'}</span>
+                {isEditingDelivery ? (
+                  <span className="detail-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      type="datetime-local"
+                      value={editDeliveryValue}
+                      onChange={(e) => setEditDeliveryValue(e.target.value)}
+                      style={{ fontSize: '0.85rem', padding: '2px 4px' }}
+                    />
+                    <button
+                      className="btn btn-sm btn-success"
+                      onClick={handleSaveDelivery}
+                      disabled={isSavingDelivery}
+                      style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                    >
+                      {isSavingDelivery ? '...' : '✓'}
+                    </button>
+                    <button
+                      className="btn btn-sm btn-secondary"
+                      onClick={() => setIsEditingDelivery(false)}
+                      style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ) : (
+                  <span className="detail-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {order.expectedDelivery ? formatDate(order.expectedDelivery) : 'Will be shared via WhatsApp'}
+                    <button
+                      onClick={handleEditDelivery}
+                      title="Edit expected delivery"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', padding: '0' }}
+                    >
+                      ✏️
+                    </button>
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Last Updated:</span>

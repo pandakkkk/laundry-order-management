@@ -21,7 +21,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
       }
 
       // QR size based on tag size
-      const qrSize = tagSize === 'thermal' ? '120x120' : tagSize === 'small' ? '60x60' : '80x80';
+      const qrSize = tagSize === 'thermal' ? '100x100' : tagSize === 'small' ? '60x60' : '80x80';
       
       // Generate URL for QR code that links to order details page
       const orderViewUrl = `${window.location.origin}/order/${order._id}`;
@@ -55,10 +55,10 @@ const GarmentTagPrint = ({ order, onClose }) => {
             
             body {
               font-family: Arial, sans-serif;
-              padding: 10mm;
+              padding: ${tagSize === 'thermal' ? '0' : '10mm'};
               display: flex;
               flex-wrap: wrap;
-              gap: 5mm;
+              gap: ${tagSize === 'thermal' ? '1mm' : '5mm'};
               justify-content: flex-start;
             }
             
@@ -84,8 +84,8 @@ const GarmentTagPrint = ({ order, onClose }) => {
               box-sizing: border-box;
               page-break-inside: avoid;
             }
-            
-            .garment-tag.size-thermal { width: 2in; height: 2in; padding: 3mm; }
+
+            .garment-tag.size-thermal { width: 2in; height: 2in; padding: 2mm; border: 1.5px solid #000; }
             .garment-tag.size-standard { width: 60mm; height: 30mm; padding: 2mm; }
             .garment-tag.size-small { width: 40mm; height: 25mm; padding: 1.5mm; }
             .garment-tag.size-large { width: 80mm; height: 40mm; padding: 3mm; }
@@ -115,7 +115,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
             }
             
             .size-small .tag-top { margin-top: 4mm; gap: 1.5mm; }
-            .size-thermal .tag-top { flex-direction: column; margin-top: 2mm; gap: 1mm; }
+            .size-thermal .tag-top { flex-direction: row; margin-top: 1mm; gap: 2mm; }
             
             .tag-qr img {
               width: 12mm;
@@ -125,7 +125,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
             
             .size-small .tag-qr img { width: 10mm; height: 10mm; }
             .size-large .tag-qr img { width: 16mm; height: 16mm; }
-            .size-thermal .tag-qr img { width: 20mm; height: 20mm; border: none; }
+            .size-thermal .tag-qr img { width: 16mm; height: 16mm; border: none; }
             
             .tag-info {
               display: flex;
@@ -133,7 +133,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
               align-items: flex-start;
               gap: 0.3mm;
             }
-            .size-thermal .tag-info { align-items: center; text-align: center; gap: 0.5mm; }
+            .size-thermal .tag-info { align-items: flex-start; text-align: left; gap: 0.5mm; }
             
             .tag-number {
               font-size: 10pt;
@@ -145,7 +145,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
             
             .size-small .tag-number { font-size: 8pt; }
             .size-large .tag-number { font-size: 12pt; }
-            .size-thermal .tag-number { font-size: 14pt; letter-spacing: 1px; }
+            .size-thermal .tag-number { font-size: 11pt; letter-spacing: 0.5px; }
             
             .tag-customer {
               font-size: 7pt;
@@ -159,11 +159,11 @@ const GarmentTagPrint = ({ order, onClose }) => {
             }
             
             .size-small .tag-customer { font-size: 6pt; max-width: 18mm; }
-            .size-thermal .tag-customer { font-size: 10pt; max-width: 45mm; }
+            .size-thermal .tag-customer { font-size: 8pt; max-width: 30mm; }
             
             .tag-date { font-size: 6pt; color: #666; }
             .size-small .tag-date { font-size: 5pt; }
-            .size-thermal .tag-date { font-size: 8pt; }
+            .size-thermal .tag-date { font-size: 7pt; }
             
             .tag-items {
               font-size: 6pt;
@@ -174,7 +174,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
             }
             
             .size-small .tag-items { font-size: 5pt; }
-            .size-thermal .tag-items { font-size: 9pt; padding: 1mm 3mm; border-radius: 2mm; }
+            .size-thermal .tag-items { font-size: 7pt; padding: 0.5mm 2mm; border-radius: 1.5mm; }
             
             .tag-ticket {
               font-size: 5pt;
@@ -185,7 +185,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
             
             .size-small .tag-ticket { font-size: 4pt; }
             .size-large .tag-ticket { font-size: 6pt; }
-            .size-thermal .tag-ticket { font-size: 8pt; margin-top: 1mm; }
+            .size-thermal .tag-ticket { font-size: 7pt; margin-top: 0.5mm; }
             
             @media print {
               .loading-message { display: none !important; }
@@ -217,7 +217,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
                   loadingMsg.style.display = 'none';
                   container.style.display = 'flex';
                   container.style.flexWrap = 'wrap';
-                  container.style.gap = '5mm';
+                  container.style.gap = '1mm';
                   
                   // Small delay to ensure rendering is complete
                   setTimeout(function() {
@@ -249,7 +249,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
                     loadingMsg.style.display = 'none';
                     container.style.display = 'flex';
                     container.style.flexWrap = 'wrap';
-                    container.style.gap = '5mm';
+                    container.style.gap = '1mm';
                     window.print();
                   }
                 }, 5000);
