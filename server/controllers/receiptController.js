@@ -195,11 +195,19 @@ function generateThermalReceipt(doc, order, config, qrCodeImage) {
     const itemAmount = item.quantity * item.price;
     const itemLine = `${item.quantity}x ${truncateText(item.description, config.width > 200 ? 25 : 18)}`;
     const priceText = itemAmount.toFixed(0);
-    
+
     const itemY = doc.y;
     doc.text(itemLine, margin, itemY, { width: contentWidth - 40 });
     doc.text(priceText, margin, itemY, { width: contentWidth, align: 'right' });
     doc.moveDown(0.2);
+
+    // Item special instructions
+    if (item.notes && item.notes.trim()) {
+      doc.fontSize(fs.tiny || fs.small - 1).font('Helvetica-Oblique');
+      doc.text(`  Note: ${item.notes}`, margin, doc.y, { width: contentWidth - 10 });
+      doc.font('Helvetica').fontSize(fs.small);
+      doc.moveDown(0.2);
+    }
   });
 
   // Total line separator
@@ -383,7 +391,7 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
   let itemsY = tableTop + 25;
   order.items.forEach((item, index) => {
     const itemAmount = item.quantity * item.price;
-    
+
     doc.font('Helvetica')
        .fontSize(fontSize.small)
        .text(item.description, margin, itemsY, { width: 280 })
@@ -392,6 +400,15 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
        .text(itemAmount.toFixed(2), 500, itemsY);
 
     itemsY += 20;
+
+    // Item special instructions
+    if (item.notes && item.notes.trim()) {
+      doc.font('Helvetica-Oblique')
+         .fontSize(fontSize.small - 1)
+         .text(`Special: ${item.notes}`, margin + 10, itemsY, { width: 270 });
+      itemsY += 15;
+      doc.font('Helvetica').fontSize(fontSize.small);
+    }
 
     // Add line break if too many items
     if (itemsY > 700) {

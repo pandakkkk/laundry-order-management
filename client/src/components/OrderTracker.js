@@ -23,6 +23,9 @@ const OrderTracker = ({
   const [activeFilter, setActiveFilter] = useState(null); // Track active filter
   const [isFieldManuallySelected, setIsFieldManuallySelected] = useState(false); // Track if user manually selected field
   const [showQRScanner, setShowQRScanner] = useState(false); // QR Scanner modal state
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   const searchInputRef = useRef(null);
   const isFetchingRef = useRef(false);
 
@@ -113,11 +116,58 @@ const OrderTracker = ({
             yesterday.setHours(yesterday.getHours() - 24);
             params.startDate = yesterday.toISOString();
             break;
+          case 'last2days': {
+            const twoDaysAgo = new Date();
+            twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+            twoDaysAgo.setHours(0, 0, 0, 0);
+            params.startDate = twoDaysAgo.toISOString();
+            break;
+          }
+          case 'lastweek': {
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            weekAgo.setHours(0, 0, 0, 0);
+            params.startDate = weekAgo.toISOString();
+            break;
+          }
+          case 'thismonth': {
+            const monthStart = new Date();
+            monthStart.setDate(1);
+            monthStart.setHours(0, 0, 0, 0);
+            params.startDate = monthStart.toISOString();
+            break;
+          }
           default:
             break;
         }
       }
 
+      const data = await api.getOrders(params);
+      setOrders(data.data || []);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle custom date range search
+  const handleCustomDateSearch = async () => {
+    if (!customStartDate) return;
+    setActiveFilter('custom');
+    setSearchQuery('');
+    setHasSearched(true);
+    setLoading(true);
+    try {
+      const params = {
+        startDate: new Date(customStartDate).toISOString()
+      };
+      if (customEndDate) {
+        const end = new Date(customEndDate);
+        end.setHours(23, 59, 59, 999);
+        params.endDate = end.toISOString();
+      }
       const data = await api.getOrders(params);
       setOrders(data.data || []);
     } catch (error) {
@@ -134,6 +184,9 @@ const OrderTracker = ({
     setSearchQuery('');
     setHasSearched(false);
     setOrders([]);
+    setShowDatePicker(false);
+    setCustomStartDate('');
+    setCustomEndDate('');
     searchInputRef.current?.focus();
   };
 
@@ -342,6 +395,34 @@ const OrderTracker = ({
           >
             ⏰ Recent
           </button>
+          <button
+            className={`quick-filter-btn ${activeFilter === 'last2days' ? 'active' : ''}`}
+            onClick={() => handleQuickFilter('last2days')}
+            title="Last 2 Days"
+          >
+            📆 Last 2 Days
+          </button>
+          <button
+            className={`quick-filter-btn ${activeFilter === 'lastweek' ? 'active' : ''}`}
+            onClick={() => handleQuickFilter('lastweek')}
+            title="Last 7 Days"
+          >
+            🗓️ Last Week
+          </button>
+          <button
+            className={`quick-filter-btn ${activeFilter === 'thismonth' ? 'active' : ''}`}
+            onClick={() => handleQuickFilter('thismonth')}
+            title="This Month"
+          >
+            📋 This Month
+          </button>
+          <button
+            className={`quick-filter-btn ${activeFilter === 'custom' || showDatePicker ? 'active' : ''}`}
+            onClick={() => setShowDatePicker(!showDatePicker)}
+            title="Custom Date Range"
+          >
+            🔧 Custom
+          </button>
           {(activeFilter || hasSearched) && (
             <button
               className="quick-filter-btn clear-all-btn"
@@ -352,6 +433,37 @@ const OrderTracker = ({
             </button>
           )}
         </div>
+
+        {/* Custom Date Range Picker */}
+        {showDatePicker && (
+          <div className="custom-date-picker">
+            <div className="date-picker-row">
+              <label>
+                From:
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                />
+              </label>
+              <label>
+                To:
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                />
+              </label>
+              <button
+                className="date-picker-apply"
+                onClick={handleCustomDateSearch}
+                disabled={!customStartDate}
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Results */}

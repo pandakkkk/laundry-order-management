@@ -62,6 +62,10 @@ const orderSchema = new mongoose.Schema({
     type: Date,
     required: false
   },
+  pickupSchedule: {
+    type: Date,
+    required: false
+  },
   servedBy: {
     type: String,
     required: false,

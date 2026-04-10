@@ -4,7 +4,8 @@ import './GarmentTag.css';
 
 const GarmentTagPrint = ({ order, onClose }) => {
   const tagSize = 'thermal'; // Fixed to thermal 2x2 inch for thermal label printer
-  const [quantity, setQuantity] = useState(order?.items?.length || 1);
+  const totalClothes = order?.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
+  const [quantity, setQuantity] = useState(totalClothes);
   const [showCustomerName, setShowCustomerName] = useState(true);
   const printRef = useRef(null);
 
@@ -20,25 +21,27 @@ const GarmentTagPrint = ({ order, onClose }) => {
         return;
       }
 
-      // QR size based on tag size
-      const qrSize = tagSize === 'thermal' ? '100x100' : tagSize === 'small' ? '60x60' : '80x80';
-      
+      // QR size - larger for better scanning
+      const qrSize = '200x200';
+
       // Generate URL for QR code that links to order details page
       const orderViewUrl = `${window.location.origin}/order/${order._id}`;
-      
-      // Generate tags HTML
+
+      const totalPcs = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
+
+      // Generate tags HTML with sequential numbering
       const tagsHtml = Array(quantity).fill(0).map((_, idx) => `
         <div class="garment-tag size-${tagSize}" style="page-break-inside: avoid;">
-          ${tagSize !== 'thermal' ? '<div class="tag-hole"></div>' : ''}
           <div class="tag-top">
             <div class="tag-qr">
               <img src="https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}&data=${encodeURIComponent(orderViewUrl)}" alt="QR" crossorigin="anonymous" />
             </div>
             <div class="tag-info">
               <div class="tag-number">${tagNumber}</div>
+              <div class="tag-seq">${idx + 1}/${quantity}</div>
               ${showCustomerName ? `<div class="tag-customer">${(order.customerName?.split(' ')[0]?.slice(0, 10) || 'Customer').toUpperCase()}</div>` : ''}
               <div class="tag-date">${new Date(order.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}</div>
-              <div class="tag-items">${order.items?.length || 0} items</div>
+              <div class="tag-items">${totalPcs} pcs</div>
             </div>
           </div>
           <div class="tag-ticket">${order.ticketNumber}</div>
@@ -52,16 +55,16 @@ const GarmentTagPrint = ({ order, onClose }) => {
           <title>Garment Tags - ${order.ticketNumber}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            
+
             body {
               font-family: Arial, sans-serif;
-              padding: ${tagSize === 'thermal' ? '0' : '10mm'};
+              padding: 0;
               display: flex;
               flex-wrap: wrap;
-              gap: ${tagSize === 'thermal' ? '1mm' : '5mm'};
+              gap: 1mm;
               justify-content: flex-start;
             }
-            
+
             .loading-message {
               position: fixed;
               top: 50%;
@@ -71,128 +74,95 @@ const GarmentTagPrint = ({ order, onClose }) => {
               color: #666;
               text-align: center;
             }
-            
+
             .garment-tag {
               position: relative;
               background: #ffffff;
-              border: 2px solid #000000;
+              border: 1.5px solid #000;
               border-radius: 4px;
               display: flex;
               flex-direction: column;
               align-items: center;
-              justify-content: space-between;
+              justify-content: center;
+              gap: 1mm;
               box-sizing: border-box;
               page-break-inside: avoid;
+              width: 2in;
+              height: 2in;
+              padding: 2mm;
             }
 
-            .garment-tag.size-thermal { width: 2in; height: 2in; padding: 2mm; border: 1.5px solid #000; }
-            .garment-tag.size-standard { width: 60mm; height: 30mm; padding: 2mm; }
-            .garment-tag.size-small { width: 40mm; height: 25mm; padding: 1.5mm; }
-            .garment-tag.size-large { width: 80mm; height: 40mm; padding: 3mm; }
-            
-            .tag-hole {
-              position: absolute;
-              top: 3mm;
-              left: 50%;
-              transform: translateX(-50%);
-              width: 4mm;
-              height: 4mm;
-              border: 1px dashed #999;
-              border-radius: 50%;
-            }
-            
-            .size-small .tag-hole { width: 3mm; height: 3mm; top: 2mm; }
-            .size-thermal .tag-hole { display: none; }
-            
             .tag-top {
               display: flex;
               flex-direction: row;
               align-items: center;
               justify-content: center;
-              gap: 2mm;
-              margin-top: 5mm;
+              gap: 3mm;
               width: 100%;
             }
-            
-            .size-small .tag-top { margin-top: 4mm; gap: 1.5mm; }
-            .size-thermal .tag-top { flex-direction: row; margin-top: 1mm; gap: 2mm; }
-            
+
             .tag-qr img {
-              width: 12mm;
-              height: 12mm;
-              border: 1px solid #ddd;
+              width: 28mm;
+              height: 28mm;
+              border: none;
             }
-            
-            .size-small .tag-qr img { width: 10mm; height: 10mm; }
-            .size-large .tag-qr img { width: 16mm; height: 16mm; }
-            .size-thermal .tag-qr img { width: 16mm; height: 16mm; border: none; }
-            
+
             .tag-info {
               display: flex;
               flex-direction: column;
               align-items: flex-start;
-              gap: 0.3mm;
+              gap: 0.5mm;
             }
-            .size-thermal .tag-info { align-items: flex-start; text-align: left; gap: 0.5mm; }
-            
+
             .tag-number {
-              font-size: 10pt;
+              font-size: 11pt;
               font-weight: 800;
               color: #000;
               letter-spacing: 0.5px;
               font-family: 'Courier New', monospace;
             }
-            
-            .size-small .tag-number { font-size: 8pt; }
-            .size-large .tag-number { font-size: 12pt; }
-            .size-thermal .tag-number { font-size: 11pt; letter-spacing: 0.5px; }
-            
+
+            .tag-seq {
+              font-size: 11pt;
+              font-weight: 800;
+              color: #000;
+              font-family: 'Courier New', monospace;
+            }
+
             .tag-customer {
-              font-size: 7pt;
+              font-size: 8pt;
               font-weight: 600;
               color: #333;
               text-transform: uppercase;
-              max-width: 25mm;
+              max-width: 30mm;
               overflow: hidden;
               text-overflow: ellipsis;
               white-space: nowrap;
             }
-            
-            .size-small .tag-customer { font-size: 6pt; max-width: 18mm; }
-            .size-thermal .tag-customer { font-size: 8pt; max-width: 30mm; }
-            
-            .tag-date { font-size: 6pt; color: #666; }
-            .size-small .tag-date { font-size: 5pt; }
-            .size-thermal .tag-date { font-size: 7pt; }
-            
+
+            .tag-date { font-size: 7pt; color: #666; }
+
             .tag-items {
-              font-size: 6pt;
+              font-size: 7pt;
               color: #666;
               background: #f0f0f0;
-              padding: 0.3mm 1mm;
-              border-radius: 1mm;
+              padding: 0.5mm 2mm;
+              border-radius: 1.5mm;
             }
-            
-            .size-small .tag-items { font-size: 5pt; }
-            .size-thermal .tag-items { font-size: 7pt; padding: 0.5mm 2mm; border-radius: 1.5mm; }
-            
+
             .tag-ticket {
-              font-size: 5pt;
+              font-size: 7pt;
               color: #666;
               font-family: 'Courier New', monospace;
               letter-spacing: 0.3px;
             }
-            
-            .size-small .tag-ticket { font-size: 4pt; }
-            .size-large .tag-ticket { font-size: 6pt; }
-            .size-thermal .tag-ticket { font-size: 7pt; margin-top: 0.5mm; }
-            
+
             @media print {
               .loading-message { display: none !important; }
               body { padding: 0; margin: 0; }
-              @page { 
-                size: ${tagSize === 'thermal' ? '2in 2in' : 'A4'}; 
-                margin: ${tagSize === 'thermal' ? '0' : '5mm'}; 
+              @page {
+                size: 2in 2in;
+                margin: 0;
               }
             }
           </style>
@@ -209,7 +179,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
               var images = container.getElementsByTagName('img');
               var loadedCount = 0;
               var totalImages = images.length;
-              
+
               function checkAllLoaded() {
                 loadedCount++;
                 if (loadedCount >= totalImages) {
@@ -218,14 +188,14 @@ const GarmentTagPrint = ({ order, onClose }) => {
                   container.style.display = 'flex';
                   container.style.flexWrap = 'wrap';
                   container.style.gap = '1mm';
-                  
+
                   // Small delay to ensure rendering is complete
                   setTimeout(function() {
                     window.print();
                   }, 100);
                 }
               }
-              
+
               if (totalImages === 0) {
                 // No images, just print
                 loadingMsg.style.display = 'none';
@@ -241,7 +211,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
                     images[i].onerror = checkAllLoaded; // Count errors too to avoid hanging
                   }
                 }
-                
+
                 // Fallback: if images don't load in 5 seconds, print anyway
                 setTimeout(function() {
                   if (container.style.display === 'none') {
@@ -262,7 +232,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
 
       printWindow.document.write(htmlContent);
       printWindow.document.close();
-      
+
       // Close modal after print window is set up
       onClose?.();
     } catch (error) {
@@ -290,32 +260,34 @@ const GarmentTagPrint = ({ order, onClose }) => {
           {/* Preview */}
           <div className="tag-preview-display" ref={printRef}>
             <div className="garment-tag-preview">
-              <GarmentTag 
-                order={order} 
+              <GarmentTag
+                order={order}
                 size={tagSize}
                 showCustomerName={showCustomerName}
+                tagIndex={1}
+                totalTags={quantity}
               />
             </div>
           </div>
 
           {/* Tag Number Display */}
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '8px 16px', 
-            background: '#f0fdf4', 
+          <div style={{
+            textAlign: 'center',
+            padding: '8px 16px',
+            background: '#f0fdf4',
             borderRadius: '8px',
             border: '1px solid #bbf7d0'
           }}>
             <span style={{ fontSize: '0.85rem', color: '#166534' }}>
-              Tag Number: <strong>{tagNumber}</strong>
+              Tag Number: <strong>{tagNumber}</strong> &middot; Total pieces: <strong>{totalClothes}</strong>
             </span>
           </div>
 
           {/* Options */}
           <div className="tag-options">
             <label className="tag-option-item">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 checked={showCustomerName}
                 onChange={(e) => setShowCustomerName(e.target.checked)}
               />
@@ -326,9 +298,9 @@ const GarmentTagPrint = ({ order, onClose }) => {
           {/* Quantity */}
           <div className="tag-quantity-group">
             <label>Number of tags to print:</label>
-            <input 
-              type="number" 
-              min="1" 
+            <input
+              type="number"
+              min="1"
               max="50"
               value={quantity}
               onChange={(e) => setQuantity(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
@@ -337,7 +309,7 @@ const GarmentTagPrint = ({ order, onClose }) => {
 
           {/* Helper Text */}
           <p style={{ fontSize: '0.8rem', color: '#6b7280', textAlign: 'center' }}>
-            🖨️ Optimized for 2×2 inch thermal label printers. Tags will print as adhesive stickers.
+            🖨️ Each tag will be numbered sequentially (1/{quantity}, 2/{quantity}, ...). Optimized for 2×2 inch thermal label printers.
           </p>
         </div>
 
@@ -356,4 +328,3 @@ const GarmentTagPrint = ({ order, onClose }) => {
 };
 
 export default GarmentTagPrint;
-

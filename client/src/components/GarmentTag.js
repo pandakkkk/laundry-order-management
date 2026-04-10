@@ -14,7 +14,7 @@ export const generateTagNumber = (ticketNumber) => {
   return `GT-${Date.now().toString(36).toUpperCase()}`;
 };
 
-const GarmentTag = forwardRef(({ order, size = 'thermal', showCustomerName = true }, ref) => {
+const GarmentTag = forwardRef(({ order, size = 'thermal', showCustomerName = true, tagIndex, totalTags }, ref) => {
   const tagNumber = generateTagNumber(order?.ticketNumber);
 
   if (!order) return null;
@@ -32,7 +32,7 @@ const GarmentTag = forwardRef(({ order, size = 'thermal', showCustomerName = tru
   const qrData = orderViewUrl;
 
   // QR size based on tag size - thermal gets larger QR for easier scanning
-  const qrSize = size === 'thermal' ? '120x120' : size === 'small' ? '60x60' : '80x80';
+  const qrSize = size === 'thermal' ? '200x200' : size === 'small' ? '60x60' : '80x80';
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}&data=${encodeURIComponent(qrData)}`;
 
   const formatDate = (date) => {
@@ -53,21 +53,21 @@ const GarmentTag = forwardRef(({ order, size = 'thermal', showCustomerName = tru
         </div>
         <div className="tag-info">
           <div className="tag-number">{tagNumber}</div>
+          {tagIndex && totalTags && (
+            <div className="tag-seq">{tagIndex}/{totalTags}</div>
+          )}
           {showCustomerName && (
             <div className="tag-customer">
               {order.customerName?.split(' ')[0]?.slice(0, 10) || 'Customer'}
             </div>
           )}
           <div className="tag-date">{formatDate(order.orderDate)}</div>
-          <div className="tag-items">{order.items?.length || 0} items</div>
+          <div className="tag-items">{order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0} pcs</div>
         </div>
       </div>
 
       {/* Ticket Number */}
       <div className="tag-ticket">{order.ticketNumber}</div>
-
-      {/* Hole punch indicator */}
-      <div className="tag-hole"></div>
     </div>
   );
 });
@@ -75,4 +75,3 @@ const GarmentTag = forwardRef(({ order, size = 'thermal', showCustomerName = tru
 GarmentTag.displayName = 'GarmentTag';
 
 export default GarmentTag;
-

@@ -265,6 +265,22 @@
   font-style: italic;
 }
 
+.btn-add-special {
+  background: none;
+  border: 1px dashed #d1d5db;
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  color: #6366f1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add-special:hover {
+  background: #eef2ff;
+  border-color: #6366f1;
+}
+
 .cart-footer {
   border-top: 1px solid #e5e7eb;
   padding: 1.5rem;

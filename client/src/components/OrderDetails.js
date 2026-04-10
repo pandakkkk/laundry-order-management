@@ -19,6 +19,9 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
   const [isEditingDelivery, setIsEditingDelivery] = useState(false);
   const [editDeliveryValue, setEditDeliveryValue] = useState('');
   const [isSavingDelivery, setIsSavingDelivery] = useState(false);
+  const [isEditingPickup, setIsEditingPickup] = useState(false);
+  const [editPickupValue, setEditPickupValue] = useState('');
+  const [isSavingPickup, setIsSavingPickup] = useState(false);
 
   // Debug: Log order status to help troubleshoot
   useEffect(() => {
@@ -177,6 +180,36 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
       alert('Failed to update expected delivery.');
     } finally {
       setIsSavingDelivery(false);
+    }
+  };
+
+  const handleEditPickup = () => {
+    if (order.pickupSchedule) {
+      const d = new Date(order.pickupSchedule);
+      const pad = (n) => String(n).padStart(2, '0');
+      setEditPickupValue(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    } else {
+      setEditPickupValue('');
+    }
+    setIsEditingPickup(true);
+  };
+
+  const handleSavePickup = async () => {
+    try {
+      setIsSavingPickup(true);
+      const newValue = editPickupValue ? new Date(editPickupValue).toISOString() : null;
+      const result = await api.updateOrder(order._id, { pickupSchedule: newValue });
+      if (result.success) {
+        order.pickupSchedule = newValue;
+        setIsEditingPickup(false);
+      } else {
+        alert('Failed to update pickup schedule: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating pickup schedule:', error);
+      alert('Failed to update pickup schedule.');
+    } finally {
+      setIsSavingPickup(false);
     }
   };
 
@@ -346,6 +379,45 @@ const OrderDetails = memo(({ order, onClose, onStatusUpdate, onDelete }) => {
                     <button
                       onClick={handleEditDelivery}
                       title="Edit expected delivery"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', padding: '0' }}
+                    >
+                      ✏️
+                    </button>
+                  </span>
+                )}
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Pickup Schedule:</span>
+                {isEditingPickup ? (
+                  <span className="detail-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      type="datetime-local"
+                      value={editPickupValue}
+                      onChange={(e) => setEditPickupValue(e.target.value)}
+                      style={{ fontSize: '0.85rem', padding: '2px 4px' }}
+                    />
+                    <button
+                      className="btn btn-sm btn-success"
+                      onClick={handleSavePickup}
+                      disabled={isSavingPickup}
+                      style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                    >
+                      {isSavingPickup ? '...' : '✓'}
+                    </button>
+                    <button
+                      className="btn btn-sm btn-secondary"
+                      onClick={() => setIsEditingPickup(false)}
+                      style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ) : (
+                  <span className="detail-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {order.pickupSchedule ? formatDate(order.pickupSchedule) : 'Not scheduled'}
+                    <button
+                      onClick={handleEditPickup}
+                      title="Edit pickup schedule"
                       style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', padding: '0' }}
                     >
                       ✏️

@@ -354,6 +354,66 @@
   color: white;
 }
 
+/* Custom Date Range Picker */
+.custom-date-picker {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.date-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.date-picker-row label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.date-picker-row input[type="date"] {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.date-picker-row input[type="date"]:focus {
+  border-color: var(--primary-color);
+}
+
+.date-picker-apply {
+  padding: 0.4rem 1rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.date-picker-apply:hover {
+  background: var(--secondary-color);
+}
+
+.date-picker-apply:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
 .tracker-results {
   margin-top: 2rem;
 }

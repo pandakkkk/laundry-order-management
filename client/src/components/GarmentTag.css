@@ -8,7 +8,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 1mm;
   box-sizing: border-box;
   font-family: 'Arial', sans-serif;
 }
@@ -17,7 +18,7 @@
 .garment-tag.size-thermal {
   width: 2in;
   height: 2in;
-  padding: 3mm;
+  padding: 2mm;
 }
 
 /* Standard size: 60mm x 30mm (typical clothing tag) */
@@ -72,20 +73,17 @@
   align-items: center;
   justify-content: center;
   gap: 2mm;
-  margin-top: 5mm;
   width: 100%;
 }
 
 .size-small .tag-top {
-  margin-top: 4mm;
   gap: 1.5mm;
 }
 
-/* Thermal 2x2 - Vertical layout for square format */
+/* Thermal 2x2 - Horizontal layout with big QR */
 .size-thermal .tag-top {
-  flex-direction: column;
-  margin-top: 2mm;
-  gap: 1mm;
+  flex-direction: row;
+  gap: 3mm;
 }
 
 /* QR Code */
@@ -107,8 +105,8 @@
 
 /* Thermal 2x2 - Larger QR for better scanning */
 .size-thermal .tag-qr img {
-  width: 20mm;
-  height: 20mm;
+  width: 28mm;
+  height: 28mm;
   border: none;
 }
 
@@ -120,10 +118,10 @@
   gap: 0.3mm;
 }
 
-/* Thermal 2x2 - Center aligned info */
+/* Thermal 2x2 - Left aligned info */
 .size-thermal .tag-info {
-  align-items: center;
-  text-align: center;
+  align-items: flex-start;
+  text-align: left;
   gap: 0.5mm;
 }
 
@@ -145,8 +143,24 @@
 
 /* Thermal 2x2 - Larger tag number */
 .size-thermal .tag-number {
-  font-size: 14pt;
-  letter-spacing: 1px;
+  font-size: 12pt;
+  letter-spacing: 0.5px;
+}
+
+/* Tag sequence number (e.g., 1/5) */
+.tag-seq {
+  font-size: 10pt;
+  font-weight: 800;
+  color: #000;
+  font-family: 'Courier New', monospace;
+}
+
+.size-small .tag-seq {
+  font-size: 7pt;
+}
+
+.size-thermal .tag-seq {
+  font-size: 11pt;
 }
 
 .tag-customer {
@@ -167,8 +181,8 @@
 
 /* Thermal 2x2 */
 .size-thermal .tag-customer {
-  font-size: 10pt;
-  max-width: 45mm;
+  font-size: 9pt;
+  max-width: 30mm;
 }
 
 .tag-date {
@@ -181,7 +195,7 @@
 }
 
 .size-thermal .tag-date {
-  font-size: 8pt;
+  font-size: 7pt;
 }
 
 .tag-items {
@@ -197,38 +211,9 @@
 }
 
 .size-thermal .tag-items {
-  font-size: 9pt;
-  padding: 1mm 3mm;
-  border-radius: 2mm;
-}
-
-/* Barcode Section */
-.tag-barcode {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-}
-
-.tag-barcode svg {
-  max-width: 50mm;
-  height: 8mm;
-}
-
-.size-small .tag-barcode svg {
-  max-width: 35mm;
-  height: 6mm;
-}
-
-.size-large .tag-barcode svg {
-  max-width: 70mm;
-  height: 10mm;
-}
-
-/* Thermal 2x2 - Full width barcode */
-.size-thermal .tag-barcode svg {
-  max-width: 45mm;
-  height: 10mm;
+  font-size: 8pt;
+  padding: 0.5mm 2mm;
+  border-radius: 1.5mm;
 }
 
 /* Ticket number at bottom */
@@ -244,8 +229,7 @@
 }
 
 .size-thermal .tag-ticket {
-  font-size: 8pt;
-  margin-top: 1mm;
+  font-size: 7pt;
 }
 
 .size-large .tag-ticket {
@@ -266,11 +250,6 @@
   }
 
   .tag-qr img {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  .tag-barcode svg {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -560,4 +539,3 @@
   transform: none;
   box-shadow: none;
 }
-
