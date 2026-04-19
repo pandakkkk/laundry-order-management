@@ -193,7 +193,7 @@ function generateThermalReceipt(doc, order, config, qrCodeImage) {
   doc.fontSize(fs.small).font('Helvetica');
   order.items.forEach((item) => {
     const itemAmount = item.quantity * item.price;
-    const itemLine = `${item.quantity}x ${truncateText(item.description, config.width > 200 ? 25 : 18)}`;
+    const itemLine = `${item.quantity}x ${truncateText(item.description, config.width > 200 ? 20 : 14)} @${item.price.toFixed(0)}`;
     const priceText = itemAmount.toFixed(0);
 
     const itemY = doc.y;
@@ -533,6 +533,7 @@ function formatDateShort(date) {
   if (!date) return 'N/A';
   const d = new Date(date);
   return d.toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata',
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
@@ -545,6 +546,7 @@ function formatDate(date) {
   if (!date) return 'N/A';
   const d = new Date(date);
   return d.toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata',
     day: '2-digit',
     month: 'short',
     year: 'numeric',
