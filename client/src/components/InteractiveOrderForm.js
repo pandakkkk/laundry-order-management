@@ -60,6 +60,7 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [discountReason, setDiscountReason] = useState('');
   const [expandedNotes, setExpandedNotes] = useState({});
+  const [editingQuantity, setEditingQuantity] = useState(null);
 
   // Fetch products from API
   const fetchProducts = useCallback(async () => {
@@ -585,7 +586,36 @@ const InteractiveOrderForm = memo(({ onSubmit, onCancel }) => {
                   <div className="cart-item-actions">
                     <div className="quantity-controls">
                       <button onClick={() => updateQuantity(item.id, item.quantity - 1)}>−</button>
-                      <span>{item.quantity}</span>
+                      {editingQuantity === item.id ? (
+                        <input
+                          type="number"
+                          className="quantity-input"
+                          defaultValue={item.quantity}
+                          min="1"
+                          autoFocus
+                          onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.target.blur();
+                            } else if (e.key === 'Escape') {
+                              setEditingQuantity(null);
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const parsed = parseInt(e.target.value, 10);
+                            updateQuantity(item.id, !isNaN(parsed) && parsed >= 1 ? parsed : 1);
+                            setEditingQuantity(null);
+                          }}
+                        />
+                      ) : (
+                        <span
+                          className="quantity-display"
+                          onClick={() => setEditingQuantity(item.id)}
+                          title="Click to type quantity"
+                        >
+                          {item.quantity}
+                        </span>
+                      )}
                       <button onClick={() => updateQuantity(item.id, item.quantity + 1)}>+</button>
                     </div>
                     <button
