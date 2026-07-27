@@ -5,6 +5,13 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
+const { validateEnv } = require('./config/env');
+const mongoSanitize = require('./middleware/sanitize');
+const logger = require('./utils/logger');
+
+// Validate critical environment variables
+validateEnv();
+
 const orderRoutes = require('./routes/orderRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -12,17 +19,56 @@ const customerRoutes = require('./routes/customerRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const productRoutes = require('./routes/productRoutes');
+const publicRoutes = require('./routes/publicRoutes');
+const customerAuthRoutes = require('./routes/customerAuthRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const checkoutRoutes = require('./routes/checkoutRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
+const couponRoutes = require('./routes/couponRoutes');
+const walletRoutes = require('./routes/walletRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const customerOrderRoutes = require('./routes/customerOrderRoutes');
+const leadRoutes = require('./routes/leadRoutes');
+const { registerOrderListeners } = require('./events/orderListeners');
 const { protect } = require('./middleware/auth');
+const subscriptionCron = require('./services/subscriptionCron');
+const walletReconciliationCron = require('./services/walletReconciliationCron');
+
+// Register domain event listeners (Decoupled Event-Driven Architecture)
+registerOrderListeners();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+const allowedOrigins = [
+  'https://laundryman.pro',
+  'https://www.laundryman.pro',
+  'http://localhost:5173',
+  process.env.WBL_FE_ORIGIN
+].filter(Boolean);
+
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Public-API-Key', 'X-Cart-Session', 'Accept'],
+  credentials: true
+}));
 app.use(morgan('dev'));
+
+// Webhook routes MUST be mounted before express.json() — Razorpay signature
+// verification requires the raw request body bytes.
+app.use('/api/webhooks', webhookRoutes);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(mongoSanitize); // Sanitize inputs against NoSQL injection
 
 // Database connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://Vercel-Admin-laundry-order-management:zJDQFtuf2xbTzoJC@laundry-order-managemen.nvjptop.mongodb.net/laundry-orders?retryWrites=true&w=majority';
@@ -36,35 +82,39 @@ mongoose.connect(MONGODB_URI, {
   maxPoolSize: 10
 })
   .then(() => {
-    console.log('✅ Connected to MongoDB Atlas');
-    console.log(`📊 Database: ${mongoose.connection.db.databaseName}`);
-    console.log(`🌐 Cluster: ${mongoose.connection.host}`);
+    logger.info('Connected to MongoDB Atlas', {
+      db: mongoose.connection.db.databaseName,
+      host: mongoose.connection.host
+    });
   })
   .catch((err) => {
-    console.log('⚠️  MongoDB Atlas connection failed.');
-    console.log('Error:', err.message);
-    if (err.message.includes('authentication')) {
-      console.log('💡 Tip: Check MongoDB Atlas Network Access - your IP may need to be whitelisted');
-      console.log('   Go to: https://cloud.mongodb.com/ → Network Access → Add IP Address');
-    }
-    console.log('🔄 Server will continue, but database operations will fail until connection is established.');
+    logger.error(`MongoDB Atlas connection failed: ${err.message}`);
   });
 
 // Handle connection events
 mongoose.connection.on('error', (err) => {
-  console.error('❌ MongoDB connection error:', err.message);
+  logger.error(`MongoDB connection error: ${err.message}`);
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('⚠️  MongoDB disconnected. Attempting to reconnect...');
+  logger.warn('MongoDB disconnected. Attempting to reconnect...');
 });
 
 mongoose.connection.on('reconnected', () => {
-  console.log('✅ MongoDB reconnected successfully');
-  });
+  logger.info('MongoDB reconnected successfully');
+});
 
-// Routes
+// Routes — public routes MUST be mounted before protect middleware
+app.use('/api/public', publicRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/customer/auth', customerAuthRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/checkout', checkoutRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/customer/orders', customerOrderRoutes);
+app.use('/api/leads', leadRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/orders', protect, orderRoutes);
@@ -83,7 +133,7 @@ app.get('/api/health', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error(`Unhandled Request Error: ${err.message}`, { stack: err.stack });
   res.status(500).json({ 
     error: 'Something went wrong!',
     message: err.message 
@@ -91,14 +141,39 @@ app.use((err, req, res, next) => {
 });
 
 // Start server only when run directly (not when imported)
+let server;
 if (require.main === module) {
-  // Start server immediately (MongoDB will connect in background)
-  app.listen(PORT, () => {
-    console.log(`🚀 Server is running on port ${PORT}`);
-    console.log(`📊 Dashboard: http://localhost:${PORT}`);
-    console.log(`🔗 API: http://localhost:${PORT}/api`);
+  server = app.listen(PORT, () => {
+    logger.info(`Server is running on port ${PORT}`);
   });
+
+  if (process.env.SUBSCRIPTION_CRON_ENABLED !== 'false') {
+    subscriptionCron.start();
+  }
+  if (process.env.WALLET_RECONCILIATION_ENABLED !== 'false') {
+    walletReconciliationCron.start();
+  }
 }
 
+// Graceful shutdown
+const gracefulShutdown = async (signal) => {
+  logger.info(`Received ${signal}. Shutting down gracefully...`);
+  if (server) {
+    server.close(async () => {
+      logger.info('HTTP server closed.');
+      await mongoose.connection.close(false);
+      logger.info('MongoDB connection closed.');
+      process.exit(0);
+    });
+  } else {
+    await mongoose.connection.close(false);
+    process.exit(0);
+  }
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 module.exports = app;
+
 

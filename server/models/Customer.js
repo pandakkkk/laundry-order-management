@@ -1,4 +1,9 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
+
+function generateReferralCode() {
+  return crypto.randomBytes(4).toString('hex').toUpperCase();
+}
 
 const customerSchema = new mongoose.Schema({
   phoneNumber: {
@@ -10,8 +15,9 @@ const customerSchema = new mongoose.Schema({
   },
   name: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
   },
   email: {
     type: String,
@@ -69,6 +75,35 @@ const customerSchema = new mongoose.Schema({
     type: String,
     trim: true
   }],
+  authProvider: {
+    type: String,
+    enum: ['otp', 'password', 'staff_created'],
+    default: 'staff_created'
+  },
+  passwordHash: {
+    type: String,
+    select: false
+  },
+  referralCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+    uppercase: true,
+    trim: true,
+    default: generateReferralCode
+  },
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Customer',
+    default: null
+  },
+  referralBonusCredited: {
+    type: Boolean,
+    default: false
+  },
+  lastLoginAt: {
+    type: Date
+  },
   createdAt: {
     type: Date,
     default: Date.now

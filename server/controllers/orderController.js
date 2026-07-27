@@ -1,6 +1,9 @@
 const Order = require('../models/Order');
 const Customer = require('../models/Customer');
 const Counter = require('../models/Counter');
+const notificationService = require('../services/notificationService');
+const walletService = require('../services/walletService');
+const emailService = require('../services/emailService');
 
 // Generate ticket number in format: YYMMDD-XXX-NNNNN
 // e.g., 260201-001-00001 (date-store-sequence)
@@ -251,23 +254,20 @@ exports.getOrderByTicketNumber = async (req, res) => {
   }
 };
 
+const { orderEvents, ORDER_EVENTS } = require('../events/orderEvents');
+const orderRepository = require('../repositories/OrderRepository');
+
 // Create new order
 exports.createOrder = async (req, res) => {
   try {
     const orderData = { ...req.body };
 
-    // ALWAYS auto-generate ticketNumber and orderNumber to ensure proper sequencing
-    // The preview numbers shown in the form are just for display purposes
-    orderData.ticketNumber = await generateTicketNumber();
-    orderData.orderNumber = await generateOrderNumber();
-
-    // Ensure status defaults to 'Booking Confirmed'
+    // Server-authoritative defaults
     if (!orderData.status) orderData.status = 'Booking Confirmed';
-
-    // Always use server time for orderDate to avoid client/server time mismatch
     orderData.orderDate = new Date();
 
-    const order = await Order.create(orderData);
+    // Create order via Repository abstraction (auto-generates ticket/order numbers when absent)
+    const order = await orderRepository.create(orderData);
 
     // Auto-create or update customer record so they're searchable in future orders
     if (orderData.phoneNumber) {
@@ -298,11 +298,8 @@ exports.createOrder = async (req, res) => {
       }
     }
 
-    // Send order confirmation notification (async, don't wait)
-    const notificationService = require('../services/notificationService');
-    const notificationType = process.env.NOTIFICATION_TYPE || 'both'; // sms, whatsapp, or both
-    notificationService.sendOrderNotification(order, 'confirmation', notificationType)
-      .catch(err => console.error('Failed to send order confirmation notification:', err));
+    // Emit domain event — orderListeners handles notifications asynchronously
+    orderEvents.emit(ORDER_EVENTS.CREATED, order);
     
     res.status(201).json({
       success: true,
@@ -322,13 +319,12 @@ exports.updateOrderStatus = async (req, res) => {
     const { status } = req.body;
     
     // Get previous status before update
-    const previousOrder = await Order.findById(req.params.id);
+    const previousOrder = await orderRepository.findById(req.params.id);
     const previousStatus = previousOrder ? previousOrder.status : null;
     
-    const order = await Order.findByIdAndUpdate(
+    const order = await orderRepository.updateById(
       req.params.id,
-      { status, updatedAt: Date.now() },
-      { new: true, runValidators: true }
+      { status, updatedAt: Date.now() }
     );
     
     if (!order) {
@@ -338,22 +334,8 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
     
-    // Send notifications based on status change (async, don't wait)
-    const notificationService = require('../services/notificationService');
-    const notificationType = process.env.NOTIFICATION_TYPE || 'both';
-    
-    // Send notification for important status changes
-    if (status === 'Ready for Pickup') {
-      notificationService.sendOrderNotification(order, 'ready', notificationType)
-        .catch(err => console.error('Failed to send ready notification:', err));
-    } else if (status === 'Delivered') {
-      notificationService.sendOrderNotification(order, 'delivered', notificationType)
-        .catch(err => console.error('Failed to send delivered notification:', err));
-    } else if (['Sorting', 'Washing', 'Ironing', 'Quality Check', 'Packing', 'Out for Delivery'].includes(status)) {
-      // Send status update for key processing stages
-      notificationService.sendOrderNotification(order, 'statusUpdate', notificationType, previousStatus)
-        .catch(err => console.error('Failed to send status update notification:', err));
-    }
+    // Emit domain event for status update
+    orderEvents.emit(ORDER_EVENTS.STATUS_UPDATED, { order, previousStatus });
     
     res.json({
       success: true,
@@ -717,11 +699,11 @@ exports.getMyAssignedOrders = async (req, res) => {
 exports.getDeliveryPersonnel = async (req, res) => {
   try {
     const User = require('../models/User');
-    const deliveryUsers = await User.find({ 
+    const deliveryUsers = await User.find({
       role: 'delivery',
       isActive: true
     }).select('_id name email role isActive');
-    
+
     res.json({
       success: true,
       data: deliveryUsers
@@ -738,11 +720,11 @@ exports.getDeliveryPersonnel = async (req, res) => {
 exports.getStaff = async (req, res) => {
   try {
     const User = require('../models/User');
-    const staffUsers = await User.find({ 
+    const staffUsers = await User.find({
       role: { $in: ['staff', 'drycleaner', 'backoffice'] },
       isActive: true
     }).select('_id name email role isActive');
-    
+
     res.json({
       success: true,
       data: staffUsers
@@ -759,11 +741,11 @@ exports.getStaff = async (req, res) => {
 exports.getManagers = async (req, res) => {
   try {
     const User = require('../models/User');
-    const managers = await User.find({ 
+    const managers = await User.find({
       role: { $in: ['manager', 'admin'] },
       isActive: true
     }).select('_id name email role isActive');
-    
+
     res.json({
       success: true,
       data: managers
@@ -773,6 +755,201 @@ exports.getManagers = async (req, res) => {
       success: false,
       error: error.message
     });
+  }
+};
+
+// ============================================================
+// createFromCart — internal helper used by checkout + webhook
+// Idempotent: if an Order already exists with the same
+// razorpayOrderId (online) or paymentAttemptId (COD), returns it.
+// ============================================================
+async function createFromCart({ cart, paymentAttempt, customer, contactOverrides = {} }) {
+  if (!cart) throw new Error('createFromCart: cart is required');
+  if (!paymentAttempt) throw new Error('createFromCart: paymentAttempt is required');
+
+  const existing = await Order.findOne({
+    $or: [
+      paymentAttempt.razorpayOrderId ? { razorpayOrderId: paymentAttempt.razorpayOrderId } : null,
+      { paymentAttemptId: paymentAttempt._id }
+    ].filter(Boolean)
+  });
+  if (existing) return existing;
+
+  const phoneNumber = customer?.phoneNumber || contactOverrides.phoneNumber;
+  const customerName = contactOverrides.name || customer?.name || 'Customer';
+  if (!phoneNumber) throw new Error('createFromCart: phoneNumber required');
+
+  const orderItems = cart.items.map((it) => ({
+    description: it.description,
+    quantity: it.quantity,
+    price: it.price,
+    productId: it.productId || undefined,
+    selectedOptions: it.selectedOptions || undefined
+  }));
+
+  const orderDate = new Date();
+  const pickupDate = cart.pickupSlot?.date ? new Date(cart.pickupSlot.date) : orderDate;
+  const expectedDelivery = new Date(pickupDate.getTime() + 72 * 60 * 60 * 1000);
+
+  const ticketNumber = await generateTicketNumber();
+  const orderNumber = await generateOrderNumber();
+
+  const isCod = paymentAttempt.method === 'cod';
+  const walletApplied = cart.walletApplied || 0;
+  const subscriptionCovered = cart.subscriptionCovered || 0;
+  const isZeroTotal = paymentAttempt.notes?.zeroTotal === true || cart.total === 0;
+  const subscriptionCoversAll = subscriptionCovered > 0
+    && subscriptionCovered >= (cart.subtotal - (cart.discountAmount || 0));
+
+  let paymentStatus;
+  let paymentMethod;
+  if (isZeroTotal && subscriptionCoversAll && walletApplied === 0) {
+    paymentStatus = 'Paid';
+    paymentMethod = 'Subscription';
+  } else if (isZeroTotal) {
+    paymentStatus = 'Paid';
+    paymentMethod = 'Wallet';
+  } else if (isCod) {
+    paymentStatus = walletApplied > 0 || subscriptionCovered > 0 ? 'Partial' : 'Pending';
+    paymentMethod = 'COD';
+  } else {
+    paymentStatus = 'Paid';
+    paymentMethod = 'Razorpay';
+  }
+
+  const order = await Order.create({
+    ticketNumber,
+    orderNumber,
+    customerName,
+    customerId: customer?.customerId || '',
+    customerRef: customer?._id || null,
+    phoneNumber,
+    orderDate,
+    expectedDelivery,
+    items: orderItems,
+    totalAmount: cart.total,
+    subtotalAmount: cart.subtotal,
+    discountAmount: cart.discountAmount,
+    walletApplied: cart.walletApplied,
+    subscriptionCovered: cart.subscriptionCovered || 0,
+    subscriptionCoverage: cart.subscriptionCoverage
+      ? {
+          subscriptionId: cart.subscriptionCoverage.subscriptionId || null,
+          breakdown: (cart.subscriptionCoverage.breakdown || []).map((b) => ({
+            productId: b.productId,
+            description: b.description,
+            appliedQuantity: b.appliedQuantity,
+            valuePerUnit: b.valuePerUnit,
+            totalValue: b.totalValue
+          }))
+        }
+      : undefined,
+    couponCode: cart.couponCode,
+    paymentMethod,
+    paymentStatus,
+    paymentAttemptId: paymentAttempt._id,
+    razorpayOrderId: paymentAttempt.razorpayOrderId || null,
+    source: 'website',
+    servedBy: 'Website Booking',
+    status: 'Booking Confirmed',
+    location: cart.pickupSlot?.address || '',
+    notes: cart.pickupSlot?.address ? `Pickup address: ${cart.pickupSlot.address}` : '',
+    pickupAddress: {
+      address: cart.pickupSlot?.address || '',
+      city: cart.pickupSlot?.city || '',
+      pincode: cart.pickupSlot?.pincode || '',
+      landmark: cart.pickupSlot?.landmark || '',
+      slotDate: cart.pickupSlot?.date || null,
+      slotWindow: cart.pickupSlot?.timeWindow || ''
+    }
+  });
+
+  // Link the payment attempt back to the order for reverse lookup.
+  paymentAttempt.orderId = order._id;
+  await paymentAttempt.save();
+
+  if (customer) {
+    const wasFirstOrder = (customer.totalOrders || 0) === 0;
+    try {
+      await customer.incrementOrderCount(order.totalAmount);
+    } catch (err) {
+      console.error('incrementOrderCount failed:', err.message);
+    }
+    if (wasFirstOrder) {
+      creditReferralBonus(customer, order).catch((err) =>
+        console.error('referral bonus failed:', err.message)
+      );
+    }
+  }
+
+  // Fire-and-forget notification
+  notificationService
+    .sendOrderNotification(order, 'confirmation', process.env.NOTIFICATION_TYPE || 'both')
+    .catch((err) => console.error('Order notification failed:', err.message));
+
+  // Email (optional — silently skipped if SMTP unconfigured or customer has no email)
+  if (customer?.email) {
+    const tpl = emailService.orderConfirmation(order);
+    emailService.send({ to: customer.email, subject: tpl.subject, text: tpl.text })
+      .catch((err) => console.error('order email failed:', err.message));
+  }
+
+  return order;
+}
+
+async function creditReferralBonus(referee, order) {
+  if (!referee.referredBy || referee.referralBonusCredited) return;
+  const amount = Math.max(0, parseInt(process.env.REFERRAL_BONUS_AMOUNT, 10) || 50);
+  if (amount === 0) return;
+
+  const referrer = await Customer.findById(referee.referredBy);
+  if (!referrer || referrer.status !== 'Active') return;
+
+  await walletService.credit({
+    customerId: referrer._id,
+    amount,
+    source: 'referral_bonus',
+    referenceType: 'Customer',
+    referenceId: referee._id,
+    notes: `Referral bonus — ${referee.name || referee.phoneNumber} first order`
+  });
+  await walletService.credit({
+    customerId: referee._id,
+    amount,
+    source: 'referral_bonus',
+    referenceType: 'Customer',
+    referenceId: referrer._id,
+    notes: `Signup bonus for using referral`
+  });
+
+  referee.referralBonusCredited = true;
+  await referee.save();
+}
+
+exports.createFromCart = createFromCart;
+exports._generateTicketNumber = generateTicketNumber;
+exports._generateOrderNumber = generateOrderNumber;
+
+// PATCH /api/orders/:id/collect-cod  { amountCollected? }
+// Marks a Partial/COD order as fully Paid once the delivery boy has collected the outstanding amount.
+exports.collectCod = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (order.paymentStatus === 'Paid') {
+      return res.status(400).json({ success: false, error: 'Order already fully paid' });
+    }
+    if (order.paymentMethod !== 'COD') {
+      return res.status(400).json({ success: false, error: 'Not a COD order' });
+    }
+    order.paymentStatus = 'Paid';
+    order.codCollectedAt = new Date();
+    order.codCollectedBy = req.user?.name || req.user?.email || 'staff';
+    await order.save();
+    return res.json({ success: true, data: order });
+  } catch (error) {
+    console.error('collectCod error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to record COD collection' });
   }
 };
 

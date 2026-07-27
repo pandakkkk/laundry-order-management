@@ -76,6 +76,7 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  // Admin-applied ad-hoc discount (percentage + reason)
   discount: {
     percentage: { type: Number, default: 0, min: 0, max: 100 },
     amount: { type: Number, default: 0 },
@@ -85,15 +86,108 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Customer-commerce breakdown (populated when order created from Cart via /api/checkout)
+  subtotalAmount: {
+    type: Number,
+    default: 0
+  },
+  discountAmount: {
+    type: Number,
+    default: 0
+  },
+  walletApplied: {
+    type: Number,
+    default: 0
+  },
+  couponCode: {
+    type: String,
+    uppercase: true,
+    trim: true,
+    default: null
+  },
   paymentMethod: {
     type: String,
-    enum: ['Cash', 'Card', 'UPI', 'Online'],
+    enum: ['Cash', 'Card', 'UPI', 'Online', 'Wallet', 'COD', 'Razorpay', 'Subscription'],
     default: 'Cash'
   },
   paymentStatus: {
     type: String,
-    enum: ['Pending', 'Paid', 'Partial'],
+    enum: ['Pending', 'Paid', 'Partial', 'Refunded'],
     default: 'Pending'
+  },
+  paymentAttemptId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PaymentAttempt',
+    default: null,
+    index: true
+  },
+  razorpayOrderId: {
+    type: String,
+    default: null,
+    index: true,
+    sparse: true
+  },
+  customerRef: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Customer',
+    default: null,
+    index: true
+  },
+  pickupAddress: {
+    address: { type: String, default: '' },
+    city: { type: String, default: '' },
+    pincode: { type: String, default: '' },
+    landmark: { type: String, default: '' },
+    slotDate: { type: Date, default: null },
+    slotWindow: { type: String, default: '' }
+  },
+  refundToWalletProcessed: {
+    type: Boolean,
+    default: false
+  },
+  razorpayRefundId: {
+    type: String,
+    default: null
+  },
+  razorpayRefundStatus: {
+    type: String,
+    enum: ['pending', 'processed', 'failed', null],
+    default: null
+  },
+  razorpayRefundAmount: {
+    type: Number,
+    default: 0
+  },
+  refundToRazorpayProcessed: {
+    type: Boolean,
+    default: false
+  },
+  refundToRazorpayError: {
+    type: String,
+    default: null
+  },
+  codCollectedAt: {
+    type: Date,
+    default: null
+  },
+  codCollectedBy: {
+    type: String,
+    default: ''
+  },
+  subscriptionCovered: {
+    type: Number,
+    default: 0
+  },
+  subscriptionCoverage: {
+    subscriptionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subscription', default: null },
+    breakdown: [{
+      _id: false,
+      productId: String,
+      description: String,
+      appliedQuantity: Number,
+      valuePerUnit: Number,
+      totalValue: Number
+    }]
   },
   status: {
     type: String,
@@ -218,6 +312,113 @@ const orderSchema = new mongoose.Schema({
 orderSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
+});
+
+// Refund flow. On Order status='Refund':
+//   - Razorpay portion (order.totalAmount when method Razorpay/COD) → refund via Razorpay API
+//   - Wallet portion (order.walletApplied) → credit back to wallet ledger
+// Both are idempotent via processed flags. Runs on every save; short-circuits after completion.
+orderSchema.post('save', async function (doc) {
+  try {
+    if (doc.status !== 'Refund') return;
+    if (!doc.customerRef && doc.paymentMethod !== 'Razorpay') return;
+
+    // ---- Wallet portion: credit back the wallet amount + anything paid via 'Wallet' method
+    if (!doc.refundToWalletProcessed && doc.customerRef) {
+      let walletCredit = 0;
+      if (doc.paymentMethod === 'Wallet' || doc.paymentMethod === 'Subscription') {
+        walletCredit = doc.totalAmount + (doc.walletApplied || 0);
+      } else {
+        walletCredit = doc.walletApplied || 0;
+      }
+      if (walletCredit > 0) {
+        const walletService = require('../services/walletService');
+        await walletService.credit({
+          customerId: doc.customerRef,
+          amount: walletCredit,
+          source: 'refund',
+          referenceType: 'Order',
+          referenceId: doc._id,
+          notes: `Refund for order ${doc.ticketNumber}`
+        });
+      }
+      await doc.constructor.updateOne(
+        { _id: doc._id },
+        { $set: { refundToWalletProcessed: true } }
+      );
+      // Notify customer via email (best-effort)
+      try {
+        const Customer = require('./Customer');
+        const emailService = require('../services/emailService');
+        const cust = await Customer.findById(doc.customerRef);
+        if (cust?.email) {
+          const tpl = emailService.refundCredited({
+            order: doc,
+            walletAmount: walletCredit,
+            razorpayAmount: doc.paymentMethod === 'Razorpay' ? Math.round(doc.totalAmount * 100) : 0
+          });
+          emailService.send({ to: cust.email, subject: tpl.subject, text: tpl.text })
+            .catch((err) => console.error('refund email failed:', err.message));
+        }
+      } catch (e) { console.error('refund email lookup failed:', e.message); }
+    }
+
+    // ---- Razorpay portion: fire a real refund for what customer paid via gateway
+    if (!doc.refundToRazorpayProcessed && doc.paymentMethod === 'Razorpay' && doc.paymentAttemptId) {
+      const razorpayService = require('../services/razorpayService');
+      const PaymentAttempt = require('./PaymentAttempt');
+      const attempt = await PaymentAttempt.findById(doc.paymentAttemptId);
+
+      if (!attempt?.razorpayPaymentId) {
+        await doc.constructor.updateOne(
+          { _id: doc._id },
+          { $set: { refundToRazorpayError: 'no razorpay payment id on attempt' } }
+        );
+        return;
+      }
+
+      // Gateway received the customer's out-of-pocket portion (Order.totalAmount).
+      const refundPaise = Math.round(doc.totalAmount * 100);
+      if (refundPaise <= 0) {
+        await doc.constructor.updateOne(
+          { _id: doc._id },
+          { $set: { refundToRazorpayProcessed: true } }
+        );
+        return;
+      }
+
+      try {
+        const refund = await razorpayService.refund({
+          paymentId: attempt.razorpayPaymentId,
+          amountPaise: refundPaise,
+          notes: { ticketNumber: doc.ticketNumber, orderId: String(doc._id) }
+        });
+        await doc.constructor.updateOne(
+          { _id: doc._id },
+          {
+            $set: {
+              refundToRazorpayProcessed: true,
+              razorpayRefundId: refund.id,
+              razorpayRefundStatus: refund.status || 'pending',
+              razorpayRefundAmount: refundPaise,
+              refundToRazorpayError: null
+            }
+          }
+        );
+        // Mirror onto the PaymentAttempt for audit trail
+        attempt.status = 'refunded';
+        await attempt.save();
+      } catch (rzpErr) {
+        console.error(`Razorpay refund failed for order ${doc._id}:`, rzpErr.message);
+        await doc.constructor.updateOne(
+          { _id: doc._id },
+          { $set: { refundToRazorpayError: rzpErr.message || 'unknown razorpay error' } }
+        );
+      }
+    }
+  } catch (err) {
+    console.error(`refund pipeline failed for order ${doc._id}:`, err);
+  }
 });
 
 // Index for faster queries

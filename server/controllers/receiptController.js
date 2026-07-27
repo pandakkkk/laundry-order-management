@@ -214,34 +214,57 @@ function generateThermalReceipt(doc, order, config, qrCodeImage) {
   doc.moveDown(0.3);
   drawDashedLine(doc, margin, doc.y, config.lineWidth);
 
-  // Subtotal
-  doc.moveDown(0.5);
-  doc.fontSize(fs.normal).font('Helvetica');
-  const subtotalY = doc.y;
-  doc.text('Subtotal:', margin, subtotalY);
-  doc.text(order.totalAmount.toFixed(2), margin, subtotalY, { width: contentWidth, align: 'right' });
-
-  // Discount (if applied)
-  if (order.discount && order.discount.percentage > 0) {
-    doc.moveDown(0.3);
-    doc.fontSize(fs.small).font('Helvetica');
-    const discountY = doc.y;
-    doc.text(`Discount (${order.discount.percentage}%):`, margin, discountY);
-    doc.text(`-${order.discount.amount.toFixed(2)}`, margin, discountY, { width: contentWidth, align: 'right' });
-    if (order.discount.reason) {
-      doc.moveDown(0.2);
-      doc.fontSize(fs.small).font('Helvetica');
-      doc.text(`  Reason: ${order.discount.reason}`, margin);
+  // Deduction lines (subtotal → subscription → coupon → wallet → admin discount → total)
+  doc.moveDown(0.3);
+  doc.fontSize(fs.small).font('Helvetica');
+  const subtotal = order.subtotalAmount || order.items.reduce((s, it) => s + it.price * it.quantity, 0);
+  const deductRow = (label, amount, sign = '-') => {
+    const y = doc.y;
+    doc.text(label, margin, y);
+    doc.text(`${sign}${Number(amount).toFixed(0)}`, margin, y, { width: contentWidth, align: 'right' });
+    doc.moveDown(0.15);
+  };
+  const hasAdminDiscount = order.discount && order.discount.percentage > 0;
+  const hasBreakdown = subtotal !== order.totalAmount
+    || order.subscriptionCovered > 0
+    || order.discountAmount > 0
+    || order.walletApplied > 0
+    || hasAdminDiscount;
+  if (hasBreakdown) {
+    const y = doc.y;
+    doc.text('Subtotal:', margin, y);
+    doc.text(subtotal.toFixed(0), margin, y, { width: contentWidth, align: 'right' });
+    doc.moveDown(0.15);
+    if (order.subscriptionCovered > 0) deductRow('Subscription cover:', order.subscriptionCovered);
+    if (order.discountAmount > 0) deductRow(`Coupon ${order.couponCode || ''}:`, order.discountAmount);
+    if (order.walletApplied > 0) deductRow('Wallet paid:', order.walletApplied);
+    if (hasAdminDiscount) {
+      deductRow(`Discount (${order.discount.percentage}%):`, order.discount.amount);
+      if (order.discount.reason) {
+        doc.text(`  Reason: ${order.discount.reason}`, margin);
+        doc.moveDown(0.15);
+      }
     }
   }
 
   // Total
-  doc.moveDown(0.5);
+  doc.moveDown(0.3);
   doc.fontSize(fs.heading).font('Helvetica-Bold');
   const totalY = doc.y;
   const displayTotal = order.finalAmount || order.totalAmount;
   doc.text('TOTAL:', margin, totalY);
   doc.text(displayTotal.toFixed(2), margin, totalY, { width: contentWidth, align: 'right' });
+
+  // Outstanding COD collection line (Partial paymentStatus + COD method)
+  if (order.paymentStatus === 'Partial' && order.paymentMethod === 'COD' && order.walletApplied > 0) {
+    doc.moveDown(0.3);
+    doc.fontSize(fs.small).font('Helvetica-Bold');
+    const outstanding = Math.max(0, order.totalAmount - (order.walletApplied || 0));
+    // Note: Order.totalAmount here already excludes wallet, so "collect" is the totalAmount itself.
+    const codY = doc.y;
+    doc.text('COD to collect:', margin, codY);
+    doc.text(order.totalAmount.toFixed(0), margin, codY, { width: contentWidth, align: 'right' });
+  }
 
   // Payment Info
   doc.moveDown(0.5);
@@ -424,27 +447,38 @@ function generateA4Receipt(doc, order, config, qrCodeImage) {
      .lineTo(margin + config.lineWidth, totalY)
      .stroke();
 
-  doc.moveDown(0.5);
-  doc.fontSize(fontSize.normal)
-     .font('Helvetica')
-     .text('Subtotal:', 350, doc.y)
-     .text(order.totalAmount.toFixed(2), 500, doc.y);
-
-  if (order.discount && order.discount.percentage > 0) {
+  // Deductions block (subtotal → subscription cover → coupon → wallet → admin discount)
+  const subtotalA4 = order.subtotalAmount || order.items.reduce((s, it) => s + it.price * it.quantity, 0);
+  const hasAdminDiscount = order.discount && order.discount.percentage > 0;
+  const showDeductions = subtotalA4 !== order.totalAmount
+    || order.subscriptionCovered > 0
+    || order.discountAmount > 0
+    || order.walletApplied > 0
+    || hasAdminDiscount;
+  if (showDeductions) {
     doc.moveDown(0.5);
-    doc.fontSize(fontSize.normal)
-       .font('Helvetica')
-       .text(`Discount (${order.discount.percentage}%):`, 350, doc.y)
-       .text(`-${order.discount.amount.toFixed(2)}`, 500, doc.y);
-    if (order.discount.reason) {
+    doc.fontSize(fontSize.small).font('Helvetica');
+    const drawRow = (label, value, sign = '') => {
+      const y = doc.y;
+      doc.text(label, 350, y);
+      doc.text(`${sign}${value.toFixed(0)}`, 500, y);
       doc.moveDown(0.3);
-      doc.fontSize(fontSize.small)
-         .font('Helvetica')
-         .text(`Reason: ${order.discount.reason}`, 350, doc.y);
+    };
+    drawRow('Subtotal:', subtotalA4);
+    if (order.subscriptionCovered > 0) drawRow('Subscription:', order.subscriptionCovered, '-');
+    if (order.discountAmount > 0) drawRow(`Coupon ${order.couponCode || ''}:`, order.discountAmount, '-');
+    if (order.walletApplied > 0) drawRow('Wallet:', order.walletApplied, '-');
+    if (hasAdminDiscount) {
+      drawRow(`Discount (${order.discount.percentage}%):`, order.discount.amount, '-');
+      if (order.discount.reason) {
+        doc.fontSize(fontSize.small).font('Helvetica')
+           .text(`Reason: ${order.discount.reason}`, 350, doc.y);
+        doc.moveDown(0.3);
+      }
     }
   }
 
-  doc.moveDown(0.5);
+  doc.moveDown(1);
   const displayTotal = order.finalAmount || order.totalAmount;
   doc.fontSize(fontSize.subheading)
      .font('Helvetica-Bold')

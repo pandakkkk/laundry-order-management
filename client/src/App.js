@@ -15,6 +15,10 @@ import BackOfficeDashboard from './components/BackOfficeDashboard';
 import FrontdeskDashboard from './components/FrontdeskDashboard';
 import ReportsDashboard from './components/ReportsDashboard';
 import ProductManagement from './components/ProductManagement';
+import CouponManagement from './components/CouponManagement';
+import SubscriptionPlanManagement from './components/SubscriptionPlanManagement';
+import SubscriptionsAdmin from './components/SubscriptionsAdmin';
+import LeadManagement from './components/LeadManagement';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import ReceiptModal from './components/ReceiptModal';
@@ -242,10 +246,42 @@ function App() {
           )}
           {user?.role === 'admin' && (
             <Link 
-              to="/products" 
+              to="/products"
               className={`nav-link ${location.pathname === '/products' ? 'active' : ''}`}
             >
               🏷️ Products
+            </Link>
+          )}
+          {user?.role === 'admin' && (
+            <Link
+              to="/coupons"
+              className={`nav-link ${location.pathname === '/coupons' ? 'active' : ''}`}
+            >
+              🎟 Coupons
+            </Link>
+          )}
+          {user?.role === 'admin' && (
+            <Link
+              to="/subscription-plans"
+              className={`nav-link ${location.pathname === '/subscription-plans' ? 'active' : ''}`}
+            >
+              📅 Plans
+            </Link>
+          )}
+          {(user?.role === 'admin' || user?.role === 'backoffice') && (
+            <Link
+              to="/subscriptions"
+              className={`nav-link ${location.pathname === '/subscriptions' ? 'active' : ''}`}
+            >
+              👥 Subs
+            </Link>
+          )}
+          {(user?.role === 'admin' || user?.role === 'backoffice' || user?.role === 'frontdesk') && (
+            <Link
+              to="/leads"
+              className={`nav-link ${location.pathname === '/leads' ? 'active' : ''}`}
+            >
+              📥 Leads
             </Link>
               )}
             </>
@@ -467,6 +503,42 @@ function App() {
     </>
   );
 
+  const CouponsPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main">
+        <CouponManagement />
+      </main>
+    </>
+  );
+
+  const SubscriptionPlansPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main">
+        <SubscriptionPlanManagement />
+      </main>
+    </>
+  );
+
+  const SubscriptionsAdminPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main">
+        <SubscriptionsAdmin />
+      </main>
+    </>
+  );
+
+  const LeadsPage = () => (
+    <>
+      <AppHeader />
+      <main className="app-main">
+        <LeadManagement />
+      </main>
+    </>
+  );
+
   // Track Order Page - for QR code scanning
   const TrackOrderPage = () => (
     <>
@@ -562,6 +634,27 @@ function App() {
           <ProtectedRoute>
             {/* Admin only for product management */}
             {user?.role === 'admin' ? <ProductsPage /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/coupons" element={
+          <ProtectedRoute>
+            {user?.role === 'admin' ? <CouponsPage /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/subscription-plans" element={
+          <ProtectedRoute>
+            {user?.role === 'admin' ? <SubscriptionPlansPage /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/subscriptions" element={
+          <ProtectedRoute>
+            {(user?.role === 'admin' || user?.role === 'backoffice') ? <SubscriptionsAdminPage /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/leads" element={
+          <ProtectedRoute>
+            {(user?.role === 'admin' || user?.role === 'backoffice' || user?.role === 'frontdesk')
+              ? <LeadsPage /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/order/:orderId" element={

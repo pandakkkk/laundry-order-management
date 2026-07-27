@@ -423,6 +423,94 @@ const api = {
   resetProductsToDefaults: async () => {
     const response = await axios.post(`${API_BASE_URL}/products/reset-defaults`);
     return response.data;
+  },
+
+  // ============================================
+  // Coupon Management APIs (admin)
+  // ============================================
+
+  listCoupons: async () => {
+    const response = await axios.get(`${API_BASE_URL}/coupons`);
+    return response.data;
+  },
+
+  getCoupon: async (code) => {
+    const response = await axios.get(`${API_BASE_URL}/coupons/${encodeURIComponent(code)}`);
+    return response.data;
+  },
+
+  createCoupon: async (data) => {
+    const response = await axios.post(`${API_BASE_URL}/coupons`, data);
+    return response.data;
+  },
+
+  updateCoupon: async (code, data) => {
+    const response = await axios.patch(`${API_BASE_URL}/coupons/${encodeURIComponent(code)}`, data);
+    return response.data;
+  },
+
+  deactivateCoupon: async (code) => {
+    const response = await axios.delete(`${API_BASE_URL}/coupons/${encodeURIComponent(code)}`);
+    return response.data;
+  },
+
+  // ============================================
+  // Subscription Plan Management APIs (admin)
+  // ============================================
+
+  listSubscriptionPlans: async () => {
+    const response = await axios.get(`${API_BASE_URL}/subscriptions/plans`);
+    return response.data;
+  },
+
+  createSubscriptionPlan: async (data) => {
+    const response = await axios.post(`${API_BASE_URL}/subscriptions/plans`, data);
+    return response.data;
+  },
+
+  updateSubscriptionPlan: async (slug, data) => {
+    const response = await axios.patch(`${API_BASE_URL}/subscriptions/plans/${encodeURIComponent(slug)}`, data);
+    return response.data;
+  },
+
+  // Admin: active subscriptions
+  listSubscriptions: async (params = {}) => {
+    const response = await axios.get(`${API_BASE_URL}/subscriptions/admin/list`, { params });
+    return response.data;
+  },
+
+  pauseSubscriptionAsAdmin: async (id, resumeAt) => {
+    const response = await axios.post(`${API_BASE_URL}/subscriptions/admin/${id}/pause`, { resumeAt });
+    return response.data;
+  },
+
+  resumeSubscriptionAsAdmin: async (id) => {
+    const response = await axios.post(`${API_BASE_URL}/subscriptions/admin/${id}/resume`);
+    return response.data;
+  },
+
+  cancelSubscriptionAsAdmin: async (id) => {
+    const response = await axios.post(`${API_BASE_URL}/subscriptions/admin/${id}/cancel`);
+    return response.data;
+  },
+
+  // COD collection
+  collectCod: async (orderId) => {
+    const response = await axios.patch(`${API_BASE_URL}/orders/${orderId}/collect-cod`);
+    return response.data;
+  },
+
+  // ============================================
+  // Leads (admin)
+  // ============================================
+  listLeads: async (params = {}) => {
+    const response = await axios.get(`${API_BASE_URL}/leads`, { params });
+    return response.data;
+  },
+
+  updateLead: async (id, patch) => {
+    const response = await axios.patch(`${API_BASE_URL}/leads/${id}`, patch);
+    return response.data;
   }
 };
 

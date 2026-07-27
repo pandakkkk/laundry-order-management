@@ -44,6 +44,9 @@ router.get('/:id', checkPermission(PERMISSIONS.ORDER_VIEW), orderController.getO
 // Create new order
 router.post('/', checkPermission(PERMISSIONS.ORDER_CREATE), orderController.createOrder);
 
+// Mark COD collected (Partial → Paid transition, records collector)
+router.patch('/:id/collect-cod', checkPermission(PERMISSIONS.ORDER_STATUS_UPDATE), orderController.collectCod);
+
 // Update order status
 router.patch('/:id/status', checkPermission(PERMISSIONS.ORDER_STATUS_UPDATE), orderController.updateOrderStatus);
 

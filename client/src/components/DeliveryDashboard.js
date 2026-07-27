@@ -402,23 +402,27 @@ const DeliveryDashboard = () => {
 
     try {
       await api.updateOrderStatus(selectedOrder._id, 'Delivered');
-      
+
       const updateData = {
         deliveryNotes: deliveryForm.notes,
         deliveredTo: deliveryForm.receivedBy === 'self' ? selectedOrder.customerName : deliveryForm.receiverName,
         deliveredAt: new Date()
       };
-      
-      // Update payment status if COD and collected
-      if (isCOD && deliveryForm.paymentCollected) {
-        updateData.paymentStatus = 'Paid';
-        updateData.paymentCollectedAt = new Date();
-        updateData.paymentCollectedBy = 'Delivery';
-      }
-      
+
       await api.updateOrder(selectedOrder._id, updateData);
 
-      const paymentMsg = isCOD && deliveryForm.paymentCollected ? ' | Payment collected ₹' + selectedOrder.totalAmount?.toLocaleString('en-IN') : '';
+      // Record COD collection via the dedicated endpoint (audits collectedAt/By + guards double-mark).
+      if (isCOD && deliveryForm.paymentCollected) {
+        try {
+          await api.collectCod(selectedOrder._id);
+        } catch (codErr) {
+          console.error('collect-cod failed, order still marked delivered:', codErr);
+        }
+      }
+
+      const paymentMsg = isCOD && deliveryForm.paymentCollected
+        ? ' | Collected ₹' + selectedOrder.totalAmount?.toLocaleString('en-IN')
+        : '';
       alert(`✅ Delivery completed for ${selectedOrder.ticketNumber}${paymentMsg}`);
       
       setShowDeliveryForm(false);
@@ -609,12 +613,21 @@ const DeliveryDashboard = () => {
   };
 
 
-  // Get payment badge
+  // Get payment badge — for Partial orders, shows outstanding + wallet-paid context.
   const getPaymentBadge = (order) => {
     if (order.paymentStatus === 'Paid') {
       return <span className="payment-badge prepaid">PAID</span>;
     }
-    return <span className="payment-badge cod">COD ₹{order.totalAmount?.toLocaleString('en-IN')}</span>;
+    const outstanding = order.totalAmount?.toLocaleString('en-IN');
+    if (order.paymentStatus === 'Partial') {
+      const wallet = (order.walletApplied || 0).toLocaleString('en-IN');
+      return (
+        <span className="payment-badge cod" title={`Wallet paid ₹${wallet}, collect ₹${outstanding}`}>
+          COD ₹{outstanding} <span style={{ opacity: 0.75, fontSize: '0.8em' }}>(wallet ₹{wallet})</span>
+        </span>
+      );
+    }
+    return <span className="payment-badge cod">COD ₹{outstanding}</span>;
   };
 
   return (
@@ -953,8 +966,39 @@ const DeliveryDashboard = () => {
                 <p>Ticket: {selectedOrder.ticketNumber}</p>
                 <p className="amount">Amount: ₹{selectedOrder.totalAmount?.toLocaleString('en-IN')}</p>
                 <span className={`payment-badge ${selectedOrder.paymentStatus === 'Paid' ? 'prepaid' : 'cod'}`}>
-                  {selectedOrder.paymentStatus === 'Paid' ? '✅ PREPAID' : '💵 COD'}
+                  {selectedOrder.paymentStatus === 'Paid' ? '✅ PREPAID' :
+                   selectedOrder.paymentStatus === 'Partial' ? '⚠️ PARTIAL — COLLECT COD' : '💵 COD'}
                 </span>
+                {/* Money-movement breakdown so delivery boy can explain to customer */}
+                {(selectedOrder.subtotalAmount || selectedOrder.walletApplied || selectedOrder.discountAmount || selectedOrder.subscriptionCovered) ? (
+                  <div style={{ marginTop: 8, fontSize: 13, color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px' }}>
+                    {selectedOrder.subtotalAmount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Subtotal</span><span>₹{selectedOrder.subtotalAmount.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    {selectedOrder.subscriptionCovered > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#15803d' }}>
+                        <span>Subscription cover</span><span>−₹{selectedOrder.subscriptionCovered.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    {selectedOrder.discountAmount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#15803d' }}>
+                        <span>Coupon {selectedOrder.couponCode ? `(${selectedOrder.couponCode})` : ''}</span>
+                        <span>−₹{selectedOrder.discountAmount.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    {selectedOrder.walletApplied > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#15803d' }}>
+                        <span>Wallet paid</span><span>−₹{selectedOrder.walletApplied.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, borderTop: '1px solid #e2e8f0', marginTop: 4, paddingTop: 4 }}>
+                      <span>{selectedOrder.paymentStatus === 'Paid' ? 'Paid' : 'Collect from customer'}</span>
+                      <span>₹{selectedOrder.totalAmount?.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {/* COD Payment Collection */}
@@ -963,8 +1007,13 @@ const DeliveryDashboard = () => {
                   <div className="cod-header">
                     <span className="cod-icon">💵</span>
                     <div className="cod-info">
-                      <h4>Collect Cash on Delivery</h4>
+                      <h4>{selectedOrder.paymentStatus === 'Partial' ? 'Collect remaining amount' : 'Collect Cash on Delivery'}</h4>
                       <p className="cod-amount">₹{selectedOrder.totalAmount?.toLocaleString('en-IN')}</p>
+                      {selectedOrder.walletApplied > 0 && (
+                        <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>
+                          (₹{selectedOrder.walletApplied.toLocaleString('en-IN')} already paid via wallet)
+                        </p>
+                      )}
                     </div>
                   </div>
                   
