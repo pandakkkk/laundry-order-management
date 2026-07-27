@@ -40,21 +40,41 @@ registerOrderListeners();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+// Static origin allowlist. Includes the admin app's own Vercel URL so its
+// same-project fetches (which Chrome sends with an Origin header for POST)
+// aren't rejected by the CORS middleware.
 const allowedOrigins = [
   'https://laundryman.pro',
   'https://www.laundryman.pro',
+  'https://laundry-order-management.vercel.app',
+  'http://localhost:3000',
   'http://localhost:5173',
-  process.env.WBL_FE_ORIGIN
+  process.env.WBL_FE_ORIGIN,
+  process.env.ADMIN_APP_ORIGIN
 ].filter(Boolean);
+
+// Also allow Vercel preview deployments of this same project (URLs look like
+// `laundry-order-management-<hash>-<user>.vercel.app`). Kept behind a regex so
+// arbitrary *.vercel.app apps can't hit the API.
+const ALLOWED_ORIGIN_PATTERNS = [
+  /^https:\/\/laundry-order-management(?:-[a-z0-9-]+)?\.vercel\.app$/i,
+  /^https:\/\/laundryman-fe(?:-[a-z0-9-]+)?\.vercel\.app$/i
+];
+
+function isOriginAllowed(origin) {
+  if (!origin) return true;                        // curl, mobile apps, server-to-server
+  if (allowedOrigins.includes(origin)) return true;
+  return ALLOWED_ORIGIN_PATTERNS.some((rx) => rx.test(origin));
+}
 
 // Middleware
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error(`Not allowed by CORS: ${origin}`));
     }
   },
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Public-API-Key', 'X-Cart-Session', 'Accept'],
