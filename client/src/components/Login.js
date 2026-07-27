@@ -79,7 +79,13 @@ const Login = () => {
     setLoading(false);
 
     if (!result.success) {
-      setError(result.error);
+      // Defensive: React crashes with error #31 if you render an object as a child.
+      // AuthContext already coerces, but if a future caller returns an object here we
+      // still want a visible message instead of a white screen.
+      const msg = typeof result.error === 'string'
+        ? result.error
+        : (result.error?.message || result.error?.code || 'Login failed');
+      setError(msg);
     } else {
       // Check if there's a redirect URL stored (from QR code scan)
       const redirectUrl = sessionStorage.getItem('redirectAfterLogin');

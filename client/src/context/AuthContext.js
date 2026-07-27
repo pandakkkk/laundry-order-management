@@ -3,6 +3,21 @@ import axios from 'axios';
 
 const AuthContext = createContext();
 
+// Coerce any axios error into a string safe to render. Handles our backend's
+// { error: "..." } shape as well as generic Vercel/proxy envelopes like
+// { error: { code, message } } or { message }.
+function extractErrorMessage(err, fallback) {
+  const data = err?.response?.data;
+  if (typeof data === 'string') return data;
+  if (data && typeof data.error === 'string') return data.error;
+  if (data && typeof data.error === 'object' && data.error) {
+    return data.error.message || data.error.code || fallback;
+  }
+  if (data && typeof data.message === 'string') return data.message;
+  if (typeof err?.message === 'string') return err.message;
+  return fallback;
+}
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -61,10 +76,7 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (error) {
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Login failed'
-      };
+      return { success: false, error: extractErrorMessage(error, 'Login failed') };
     }
   };
 
@@ -85,10 +97,7 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (error) {
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Registration failed'
-      };
+      return { success: false, error: extractErrorMessage(error, 'Registration failed') };
     }
   };
 
