@@ -45,13 +45,25 @@ class OrderRepository {
   }
 
   async create(orderData) {
-    if (!orderData.ticketNumber) {
+    // If ticketNumber is missing or already exists in DB, generate a new ticket number
+    if (!orderData.ticketNumber || (await Order.exists({ ticketNumber: orderData.ticketNumber }))) {
       orderData.ticketNumber = await this.generateTicketNumber();
     }
     if (!orderData.orderNumber) {
       orderData.orderNumber = await this.generateOrderNumber();
     }
-    return Order.create(orderData);
+
+    try {
+      return await Order.create(orderData);
+    } catch (err) {
+      // Fail-safe: Handle race conditions or duplicate ticketNumber key errors
+      if (err.code === 11000 && (err.message?.includes('ticketNumber') || err.keyPattern?.ticketNumber)) {
+        orderData.ticketNumber = await this.generateTicketNumber();
+        orderData.orderNumber = await this.generateOrderNumber();
+        return await Order.create(orderData);
+      }
+      throw err;
+    }
   }
 
   async updateById(id, updateData, options = { new: true }) {

@@ -173,8 +173,10 @@ const OrderForm = memo(({ onSubmit, onCancel }) => {
       return;
     }
 
+    const { ticketNumber, orderNumber, ...cleanFormData } = formData;
+
     const orderData = {
-      ...formData,
+      ...cleanFormData,
       orderDate: new Date(formData.orderDate).toISOString(),
       items: items.map(item => ({
         description: item.description,
