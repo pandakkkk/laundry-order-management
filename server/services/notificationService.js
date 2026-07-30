@@ -2,31 +2,30 @@ const https = require('https');
 const http = require('http');
 
 // ========================================
-// GUPSHUP CONFIGURATION
+// WATI CONFIGURATION
 // ========================================
 
-function getGupshupConfig() {
+function getWatiConfig() {
+  let endpoint = process.env.WATI_API_ENDPOINT || '';
+  // Remove trailing slash if present
+  if (endpoint.endsWith('/')) {
+    endpoint = endpoint.slice(0, -1);
+  }
+
   return {
-    // Gupshup WhatsApp API credentials
-    apiKey: process.env.GUPSHUP_API_KEY,
-    appName: process.env.GUPSHUP_APP_NAME || 'LaundryApp',
-    sourceNumber: process.env.GUPSHUP_SOURCE_NUMBER, // Your registered WhatsApp business number
-    
-    // Gupshup SMS API credentials (if different)
-    smsUserId: process.env.GUPSHUP_SMS_USERID || process.env.GUPSHUP_API_KEY,
-    smsPassword: process.env.GUPSHUP_SMS_PASSWORD,
-    
-    // API endpoints
-    whatsappApiUrl: 'https://api.gupshup.io/wa/api/v1/msg',
-    smsApiUrl: 'https://enterprise.smsgupshup.com/GatewayAPI/rest'
+    endpoint: endpoint,
+    authToken: process.env.WATI_AUTH_TOKEN || ''
   };
 }
 
-// Check if Gupshup is configured
-function isGupshupConfigured() {
-  const config = getGupshupConfig();
-  return !!(config.apiKey && config.sourceNumber);
+// Check if WATI is configured
+function isWatiConfigured() {
+  const config = getWatiConfig();
+  return !!(config.endpoint && config.authToken);
 }
+
+// Alias for backward compatibility
+const isGupshupConfigured = isWatiConfigured;
 
 // Message templates
 const messageTemplates = {
@@ -125,160 +124,92 @@ function formatPhoneNumber(phone) {
     cleaned = '91' + cleaned;
   }
   
-  // If starts with +, it's already removed by regex above
-  // Return without + for Gupshup
   return cleaned;
 }
 
 // ========================================
-// SEND WHATSAPP VIA GUPSHUP
+// SEND WHATSAPP VIA WATI
 // ========================================
 
 /**
- * Send WhatsApp notification via Gupshup
+ * Send WhatsApp notification via WATI API
  * @param {string} to - Phone number (format: +91XXXXXXXXXX or 91XXXXXXXXXX)
  * @param {string} message - Message to send
- * @returns {Promise<Object>} - Gupshup API response
+ * @returns {Promise<Object>} - WATI API response
  */
 async function sendWhatsApp(to, message) {
-  const config = getGupshupConfig();
+  const config = getWatiConfig();
   
-  if (!config.apiKey) {
-    console.warn('⚠️  Gupshup API key not configured. WhatsApp not sent.');
-    console.warn('   Set GUPSHUP_API_KEY in .env file');
-    return { success: false, error: 'Gupshup API key not configured' };
-  }
-
-  if (!config.sourceNumber) {
-    console.warn('⚠️  Gupshup source number not configured. WhatsApp not sent.');
-    console.warn('   Set GUPSHUP_SOURCE_NUMBER in .env file');
-    return { success: false, error: 'Gupshup source number not configured' };
+  if (!config.endpoint || !config.authToken) {
+    console.warn('⚠️  WATI API credentials not configured. WhatsApp not sent.');
+    console.warn('   Set WATI_API_ENDPOINT and WATI_AUTH_TOKEN in .env file');
+    return { success: false, error: 'WATI credentials not configured' };
   }
 
   try {
     const formattedTo = formatPhoneNumber(to);
-    const formattedSource = formatPhoneNumber(config.sourceNumber);
+    const tokenHeader = config.authToken.startsWith('Bearer ')
+      ? config.authToken
+      : `Bearer ${config.authToken}`;
     
-    // Gupshup WhatsApp API - using URL encoded form data
-    const postData = new URLSearchParams({
-      channel: 'whatsapp',
-      source: formattedSource,
-      destination: formattedTo,
-      message: JSON.stringify({
-        type: 'text',
-        text: message
-      }),
-      'src.name': config.appName
-    }).toString();
+    // WATI Session Message API endpoint
+    const url = `${config.endpoint}/api/v1/sendSessionMessage/${formattedTo}?messageText=${encodeURIComponent(message)}`;
 
     const options = {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'apikey': config.apiKey,
-        'Content-Length': Buffer.byteLength(postData)
+        'Authorization': tokenHeader,
+        'Content-Type': 'application/json'
       }
     };
 
-    console.log(`📱 Sending WhatsApp to ${formattedTo} via Gupshup...`);
+    console.log(`📱 Sending WhatsApp to ${formattedTo} via WATI...`);
     
-    const response = await makeHttpRequest(config.whatsappApiUrl, options, postData);
+    const response = await makeHttpRequest(url, options);
     
     if (response.statusCode === 200 || response.statusCode === 202) {
-      const messageId = response.data?.messageId || response.data?.id || 'sent';
-      console.log(`✅ WhatsApp sent to ${formattedTo}: ${messageId}`);
-      return {
-        success: true,
-        messageId: messageId,
-        status: response.data?.status || 'submitted',
-        provider: 'gupshup'
-      };
-    } else {
-      console.error(`❌ Gupshup WhatsApp error:`, response.data);
-      return {
-        success: false,
-        error: response.data?.message || response.data?.error || 'Failed to send WhatsApp',
-        provider: 'gupshup'
-      };
+      const isResultValid = response.data?.result === true || response.data?.result === 'true' || response.data?.valid === true || !response.data?.result;
+      if (isResultValid) {
+        const messageId = response.data?.ticketId || response.data?.id || 'sent';
+        console.log(`✅ WhatsApp sent to ${formattedTo} via WATI`);
+        return {
+          success: true,
+          messageId: messageId,
+          status: 'submitted',
+          provider: 'wati'
+        };
+      }
     }
+
+    console.error(`❌ WATI WhatsApp error:`, response.data);
+    return {
+      success: false,
+      error: response.data?.info || response.data?.message || response.data?.error || 'Failed to send WhatsApp via WATI',
+      provider: 'wati'
+    };
   } catch (error) {
-    console.error(`❌ Error sending WhatsApp to ${to}:`, error.message);
+    console.error(`❌ Error sending WhatsApp to ${to} via WATI:`, error.message);
     return {
       success: false,
       error: error.message,
-      provider: 'gupshup'
+      provider: 'wati'
     };
   }
 }
 
 // ========================================
-// SEND SMS VIA GUPSHUP
+// SEND SMS (FALLBACK TO WATSAPP VIA WATI)
 // ========================================
 
 /**
- * Send SMS notification via Gupshup
- * @param {string} to - Phone number (format: +91XXXXXXXXXX or 91XXXXXXXXXX)
+ * Send SMS notification (Delegated to WATI WhatsApp)
+ * @param {string} to - Phone number
  * @param {string} message - Message to send
- * @returns {Promise<Object>} - Gupshup API response
+ * @returns {Promise<Object>} - WATI WhatsApp API response
  */
 async function sendSMS(to, message) {
-  const config = getGupshupConfig();
-  
-  if (!config.smsUserId || !config.smsPassword) {
-    console.warn('⚠️  Gupshup SMS credentials not configured.');
-    console.warn('   Set GUPSHUP_SMS_USERID and GUPSHUP_SMS_PASSWORD in .env file');
-    // Try WhatsApp as fallback
-    console.log('📱 Falling back to WhatsApp...');
-    return sendWhatsApp(to, message);
-  }
-
-  try {
-    const formattedTo = formatPhoneNumber(to);
-    
-    // Gupshup SMS API
-    const params = new URLSearchParams({
-      method: 'SendMessage',
-      send_to: formattedTo,
-      msg: message,
-      msg_type: 'TEXT',
-      userid: config.smsUserId,
-      auth_scheme: 'plain',
-      password: config.smsPassword,
-      v: '1.1',
-      format: 'json'
-    });
-
-    const smsUrl = `${config.smsApiUrl}?${params.toString()}`;
-    
-    console.log(`📨 Sending SMS to ${formattedTo} via Gupshup...`);
-    
-    const response = await makeHttpRequest(smsUrl, { method: 'GET' });
-    
-    if (response.statusCode === 200 && response.data?.response?.status === 'success') {
-      const messageId = response.data?.response?.id || 'sent';
-      console.log(`✅ SMS sent to ${formattedTo}: ${messageId}`);
-      return {
-        success: true,
-        messageId: messageId,
-        status: 'submitted',
-        provider: 'gupshup'
-      };
-    } else {
-      console.error(`❌ Gupshup SMS error:`, response.data);
-      return {
-        success: false,
-        error: response.data?.response?.reason || 'Failed to send SMS',
-        provider: 'gupshup'
-      };
-    }
-  } catch (error) {
-    console.error(`❌ Error sending SMS to ${to}:`, error.message);
-    return {
-      success: false,
-      error: error.message,
-      provider: 'gupshup'
-    };
-  }
+  console.log('📱 Sending notification via WATI WhatsApp...');
+  return sendWhatsApp(to, message);
 }
 
 // ========================================
@@ -326,10 +257,10 @@ async function sendOrderNotification(order, event, notificationType = 'whatsapp'
     return { success: false, error: 'Order has no phone number' };
   }
 
-  // Check if Gupshup is configured
-  if (!isGupshupConfigured()) {
-    console.warn('⚠️  Gupshup not configured. Please set GUPSHUP_API_KEY and GUPSHUP_SOURCE_NUMBER in .env');
-    return { success: false, error: 'Gupshup not configured' };
+  // Check if WATI is configured
+  if (!isWatiConfigured()) {
+    console.warn('⚠️  WATI not configured. Please set WATI_API_ENDPOINT and WATI_AUTH_TOKEN in .env');
+    return { success: false, error: 'WATI not configured' };
   }
 
   let message;
@@ -424,5 +355,6 @@ module.exports = {
   sendOrderNotification,
   sendBulkNotifications,
   messageTemplates,
+  isWatiConfigured,
   isGupshupConfigured
 };

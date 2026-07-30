@@ -1,4 +1,5 @@
 const logger = require('../../utils/logger');
+const { sendWhatsApp } = require('../notificationService');
 
 /**
  * Base Notification Strategy Interface
@@ -10,32 +11,21 @@ class NotificationStrategy {
 }
 
 /**
- * Gupshup SMS Provider Implementation
+ * WATI WhatsApp Provider Implementation
  */
-class GupshupSMSProvider extends NotificationStrategy {
+class WatiWhatsAppProvider extends NotificationStrategy {
   async send(phoneNumber, message) {
-    if (!process.env.GUPSHUP_SMS_USERID || !process.env.GUPSHUP_SMS_PASSWORD) {
-      logger.warn(`[SMS Provider] Credentials missing. Message to ${phoneNumber} logged in dev mode.`);
+    if (!process.env.WATI_API_ENDPOINT || !process.env.WATI_AUTH_TOKEN) {
+      logger.warn(`[WATI WhatsApp Provider] WATI Credentials missing. Message to ${phoneNumber} logged in dev mode.`);
       return { success: true, mode: 'dev_mock' };
     }
-    // Concrete SMS dispatch logic
-    logger.info(`[SMS Provider] Dispatched SMS to ${phoneNumber}`);
-    return { success: true };
-  }
-}
-
-/**
- * Gupshup WhatsApp Provider Implementation
- */
-class GupshupWhatsAppProvider extends NotificationStrategy {
-  async send(phoneNumber, message) {
-    if (!process.env.GUPSHUP_API_KEY) {
-      logger.warn(`[WhatsApp Provider] API Key missing. Message to ${phoneNumber} logged in dev mode.`);
-      return { success: true, mode: 'dev_mock' };
+    const result = await sendWhatsApp(phoneNumber, message);
+    if (result.success) {
+      logger.info(`[WATI WhatsApp Provider] Dispatched WhatsApp message to ${phoneNumber}`);
+    } else {
+      logger.error(`[WATI WhatsApp Provider] Failed to dispatch WhatsApp message to ${phoneNumber}: ${result.error}`);
     }
-    // Concrete WhatsApp dispatch logic
-    logger.info(`[WhatsApp Provider] Dispatched WhatsApp message to ${phoneNumber}`);
-    return { success: true };
+    return result;
   }
 }
 
@@ -46,8 +36,9 @@ class GupshupWhatsAppProvider extends NotificationStrategy {
 class NotificationStrategyFactory {
   constructor() {
     this.strategies = new Map();
-    this.registerStrategy('sms', new GupshupSMSProvider());
-    this.registerStrategy('whatsapp', new GupshupWhatsAppProvider());
+    const watiProvider = new WatiWhatsAppProvider();
+    this.registerStrategy('sms', watiProvider);
+    this.registerStrategy('whatsapp', watiProvider);
   }
 
   registerStrategy(channel, strategyInstance) {
@@ -65,7 +56,7 @@ class NotificationStrategyFactory {
 
 module.exports = {
   NotificationStrategy,
-  GupshupSMSProvider,
-  GupshupWhatsAppProvider,
+  WatiWhatsAppProvider,
+  GupshupWhatsAppProvider: WatiWhatsAppProvider, // Backward compatibility alias
   notificationFactory: new NotificationStrategyFactory()
 };

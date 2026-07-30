@@ -1,54 +1,31 @@
-# 📱 SMS/WhatsApp Notifications Setup Guide
+# 📱 WhatsApp Notifications Setup Guide (WATI)
 
-This guide will help you set up SMS and WhatsApp notifications for your laundry order monitoring system using Twilio.
+This guide helps you set up WhatsApp notifications for your laundry order management system using **WATI**.
 
 ## Prerequisites
 
-1. **Twilio Account**: Sign up at [https://www.twilio.com](https://www.twilio.com)
-2. **Twilio Phone Number**: Purchase a phone number from Twilio
-3. **WhatsApp Business Account** (Optional): For WhatsApp notifications
+1. **WATI Account**: Active WATI WhatsApp API account (https://www.wati.io)
+2. **API Endpoint & Access Token**: Found under WATI Dashboard > **Account Details** > **API Docs**
 
-## Step 1: Get Twilio Credentials
+## Step 1: Get WATI Credentials
 
-1. Log in to your Twilio Console: [https://console.twilio.com](https://console.twilio.com)
-2. Go to **Account** → **API Keys & Tokens**
+1. Log in to your WATI Dashboard.
+2. Navigate to **Account Details** → **API Docs**.
 3. Copy your:
-   - **Account SID** (starts with `AC...`)
-   - **Auth Token**
+   - **API Endpoint** (e.g. `https://live-server-xxxx.wati.io` or `https://live-mt-server.wati.io`)
+   - **Access Token** (Bearer token)
 
-## Step 2: Get Twilio Phone Number
-
-1. In Twilio Console, go to **Phone Numbers** → **Manage** → **Buy a number**
-2. Select a number that supports SMS (and WhatsApp if needed)
-3. Copy the phone number (format: `+1234567890`)
-
-## Step 3: Set Up WhatsApp (Optional)
-
-For WhatsApp notifications:
-
-1. In Twilio Console, go to **Messaging** → **Try it out** → **Send a WhatsApp message**
-2. Follow the setup wizard to get your WhatsApp number
-3. The format will be: `whatsapp:+14155238886` (Twilio's sandbox) or your business number
-
-**Note**: For production, you need to:
-- Complete Twilio WhatsApp Business verification
-- Get approval from WhatsApp
-- Use your verified business number
-
-## Step 4: Configure Environment Variables
+## Step 2: Configure Environment Variables
 
 Add these variables to your `.env` file:
 
 ```env
-# Twilio Configuration
-TWILIO_ACCOUNT_SID=your_account_sid_here
-TWILIO_AUTH_TOKEN=your_auth_token_here
-TWILIO_PHONE_NUMBER=+1234567890
-TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
+# WATI WhatsApp Configuration
+WATI_API_ENDPOINT=https://live-server-xxxx.wati.io
+WATI_AUTH_TOKEN=Bearer eyJhbGciOi...
 
-# Notification Preferences
-NOTIFICATION_TYPE=both
-# Options: 'sms', 'whatsapp', or 'both'
+# Notification Preference
+NOTIFICATION_TYPE=whatsapp
 ```
 
 ## Step 5: Test Notifications

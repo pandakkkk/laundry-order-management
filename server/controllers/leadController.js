@@ -33,7 +33,7 @@ exports.create = async (req, res) => {
     });
 
     // Notify staff via WhatsApp/SMS to the business number.
-    const staffPhone = process.env.LEAD_ALERT_NUMBER || process.env.GUPSHUP_SOURCE_NUMBER;
+    const staffPhone = process.env.LEAD_ALERT_NUMBER || process.env.BUSINESS_PHONE;
     if (staffPhone) {
       const summary = `New ${type} lead from ${lead.name || 'unknown'} (+${lead.phoneNumber}). ${lead.message || ''}`.slice(0, 300);
       notificationService.sendNotification('whatsapp', staffPhone, summary)
