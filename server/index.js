@@ -40,46 +40,73 @@ registerOrderListeners();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Static origin allowlist. Includes the admin app's own Vercel URL so its
-// same-project fetches (which Chrome sends with an Origin header for POST)
-// aren't rejected by the CORS middleware.
+// Static origin allowlist. Includes production domains, local dev, and env overrides.
+const configuredOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
   'https://laundryman.pro',
   'https://www.laundryman.pro',
   'https://laundry-order-management.vercel.app',
   'http://localhost:3000',
   'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   process.env.WBL_FE_ORIGIN,
-  process.env.ADMIN_APP_ORIGIN
+  process.env.ADMIN_APP_ORIGIN,
+  ...configuredOrigins
 ].filter(Boolean);
 
-// Also allow Vercel preview deployments of this same project (URLs look like
-// `laundry-order-management-<hash>-<user>.vercel.app`). Kept behind a regex so
-// arbitrary *.vercel.app apps can't hit the API.
+// Regex patterns to allow any localhost port and Vercel preview/production deployments
 const ALLOWED_ORIGIN_PATTERNS = [
-  /^https:\/\/laundry-order-management(?:-[a-z0-9-]+)?\.vercel\.app$/i,
-  /^https:\/\/laundryman-fe(?:-[a-z0-9-]+)?\.vercel\.app$/i
+  /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/,
+  /^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)*\.vercel\.app$/i,
+  /^https:\/\/(?:www\.)?laundryman\.pro$/i
 ];
 
 function isOriginAllowed(origin) {
-  if (!origin) return true;                        // curl, mobile apps, server-to-server
+  if (!origin) return true; // curl, mobile apps, server-to-server, same-origin
   if (allowedOrigins.includes(origin)) return true;
   return ALLOWED_ORIGIN_PATTERNS.some((rx) => rx.test(origin));
 }
 
 // Middleware
-app.use(helmet());
-app.use(cors({
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+const corsOptions = {
   origin: (origin, callback) => {
     if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(new Error(`Not allowed by CORS: ${origin}`));
+      logger.warn(`CORS blocked request from origin: ${origin}`);
+      callback(null, false);
     }
   },
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Public-API-Key', 'X-Cart-Session', 'Accept'],
-  credentials: true
-}));
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Public-API-Key',
+    'X-Cart-Session',
+    'X-Customer-Token',
+    'Accept',
+    'Origin',
+    'X-Requested-With'
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(morgan('dev'));
 
 // Webhook routes MUST be mounted before express.json() — Razorpay signature
